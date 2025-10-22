@@ -48,7 +48,8 @@ class THWPluginExporter:
             "layer_manager.py",
             "mapcanvas_dropevent_filter.py",
             "__init__.py",
-            "metadata.txt"
+            "metadata.txt",
+            "LICENSE"
         ]
         
         self.required_dirs = [
@@ -109,22 +110,26 @@ class THWPluginExporter:
             print(f"[EXPORT] Exportiere Plugin von: {self.plugin_dir}")
             print(f"[EXPORT] Zielverzeichnis: {export_path}")
             
-            # Erstelle Export-Verzeichnis
-            export_path.mkdir(parents=True, exist_ok=True)
+            # Erstelle Plugin-Ordner im Export-Verzeichnis
+            plugin_folder_name = "qgisthwplugin"
+            plugin_export_path = export_path / plugin_folder_name
+            plugin_export_path.mkdir(parents=True, exist_ok=True)
+            
+            print(f"Erstelle Plugin-Ordner: {plugin_folder_name}")
             
             # Kopiere Python-Dateien
             print("Kopiere Python-Dateien...")
             for py_file in self.required_files:
                 source = self.plugin_dir / py_file
                 if source.exists():
-                    shutil.copy2(source, export_path)
+                    shutil.copy2(source, plugin_export_path)
                     print(f"   [OK] {py_file}")
                 else:
                     print(f"   [WARN] {py_file} nicht gefunden")
             
             # Kopiere SVG-Verzeichnis
             svg_source = self.plugin_dir / "svgs"
-            svg_dest = export_path / "svgs"
+            svg_dest = plugin_export_path / "svgs"
             if svg_source.exists():
                 print("Kopiere SVG-Symbole...")
                 shutil.copytree(svg_source, svg_dest, dirs_exist_ok=True)
@@ -135,7 +140,7 @@ class THWPluginExporter:
             
             # Kopiere Icons-Verzeichnis
             icon_source = self.plugin_dir / "icons"
-            icon_dest = export_path / "icons"
+            icon_dest = plugin_export_path / "icons"
             if icon_source.exists():
                 print("Kopiere Icons...")
                 shutil.copytree(icon_source, icon_dest, dirs_exist_ok=True)
@@ -150,13 +155,13 @@ class THWPluginExporter:
                 gpkg_files = list(self.plugin_dir.glob("*.gpkg"))
                 if gpkg_files:
                     for gpkg_file in gpkg_files:
-                        dest_gpkg = export_path / gpkg_file.name
+                        dest_gpkg = plugin_export_path / gpkg_file.name
                         shutil.copy2(gpkg_file, dest_gpkg)
                         print(f"   [OK] {gpkg_file.name} kopiert")
                 else:
                     print("   [INFO] Keine GeoPackage-Dateien gefunden")
             
-            # Erstelle README-Datei
+            # Erstelle README-Datei im Hauptverzeichnis
             print("Erstelle README-Datei...")
             readme_content = self._create_readme_content()
             readme_path = export_path / "README.txt"
@@ -164,14 +169,17 @@ class THWPluginExporter:
                 f.write(readme_content)
             print("   [OK] README.txt erstellt")
             
-            # Erstelle ZIP-Archiv
+            # Erstelle ZIP-Archiv mit korrekter Plugin-Struktur
             print("Erstelle ZIP-Archiv...")
             zip_path = export_path.with_suffix('.zip')
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for root, dirs, files in os.walk(export_path):
+                # Füge Plugin-Ordner-Inhalte mit Plugin-Ordnernamen ins ZIP hinzu
+                for root, dirs, files in os.walk(plugin_export_path):
                     for file in files:
                         file_path = Path(root) / file
-                        arcname = file_path.relative_to(export_path)
+                        # Berechne relativen Pfad vom Plugin-Ordner aus und füge Plugin-Namen hinzu
+                        relative_path = file_path.relative_to(plugin_export_path)
+                        arcname = f"{plugin_folder_name}/{relative_path}"
                         zipf.write(file_path, arcname)
             
             zip_size = zip_path.stat().st_size / (1024 * 1024)  # MB
@@ -193,8 +201,8 @@ class THWPluginExporter:
 =============================================
 
 Installation:
-1. Entpacken Sie alle Dateien in einen Ordner
-2. Kopieren Sie den gesamten Ordner in Ihr QGIS Plugin-Verzeichnis:
+1. Entpacken Sie die ZIP-Datei
+2. Kopieren Sie den Ordner "qgisthwplugin" in Ihr QGIS Plugin-Verzeichnis:
    - Windows: %APPDATA%\\QGIS\\QGIS3\\profiles\\default\\python\\plugins\\
    - Linux: ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/
    - macOS: ~/Library/Application Support/QGIS/QGIS3/profiles/default/python/plugins/

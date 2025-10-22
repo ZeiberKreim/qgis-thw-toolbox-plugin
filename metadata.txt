@@ -1,11 +1,11 @@
 [general]
 name=THW Toolbox
-description=QGIS-Plugin für das einfache Hinzufügen und Verwalten von taktischen Zeichen auf der Karte. Ermöglicht Drag & Drop Platzierung von SVG-Symbolen für THW, Bundeswehr, Feuerwehr, Polizei und weitere Organisationen mit intelligenter Größenanpassung und Feature-Management.
-version=1.0
+description=QGIS plugin designed for THW (Technisches Hilfswerk) operations and civil protection missions. Provides easy addition and management of tactical symbols on maps with drag & drop placement of SVG symbols for THW, Bundeswehr, fire departments, police and other organizations. Features intelligent sizing and feature management. Intended for use in civil protection and disaster response operations only.
+version=1.1
 qgisMinimumVersion=3.0
 author=THW Minden
 email=code@thw-minden.de
-about=Ein umfassendes QGIS-Plugin für taktische Kartierung mit über 1000 SVG-Symbolen für verschiedene Einsatzorganisationen. Features: Drag & Drop Symbol-Platzierung, intelligente Größenanpassung, Feature-Identifizierung, Symbol-Verschiebung, dynamische Beschriftung und persistente Speicherung in GeoPackage-Format.
+about=Comprehensive QGIS plugin for tactical mapping with over 1000 SVG symbols for various emergency response organizations. Features: Drag & Drop symbol placement, intelligent sizing, feature identification, symbol repositioning, dynamic labeling and persistent storage in GeoPackage format. Designed specifically for THW operations and civil protection missions.
 tracker=https://github.com/thw-minden/qgis-thw-toolbox-plugin/issues
 repository=https://github.com/thw-minden/qgis-thw-toolbox-plugin
 homepage=https://github.com/thw-minden/qgis-thw-toolbox-plugin

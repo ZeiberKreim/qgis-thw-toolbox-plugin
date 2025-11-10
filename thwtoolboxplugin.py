@@ -245,7 +245,14 @@ class MoveTool(QgsMapTool):
             if hasattr(self.layer_manager, 'ident_tool') and hasattr(self.layer_manager.ident_tool, 'feature_dock'):
                 self.layer_manager.ident_tool.feature_dock.show_feature(closest_feature, self.layer_manager)
         else:
-            # Kein Feature gefunden, starte Panning
+            # Kein Feature gefunden - deselektiere aktuelles Feature
+            self.moving_feature = None
+            self.set_move_mode(False)
+            # Verstecke Feature-Dock und zeige Platzhalter
+            if hasattr(self.layer_manager, 'ident_tool') and hasattr(self.layer_manager.ident_tool, 'feature_dock'):
+                self.layer_manager.ident_tool.feature_dock.show_placeholder()
+                self.layer_manager.ident_tool.feature_dock.hide()
+            # Starte Panning
             self.pan_start = event.pos()
             self.is_panning = True
             self.last_center = self.canvas.center()
@@ -280,6 +287,28 @@ class THWToolboxPlugin:
         self.move_tool = None
         self.action = None
         self.dock = None
+
+    def _check_map_available(self):
+        """Prüft, ob eine Karte vorhanden ist (CRS gesetzt und Layer im Projekt)."""
+        try:
+            # Prüfe, ob ein gültiges CRS gesetzt ist
+            crs = self.canvas.mapSettings().destinationCrs()
+            if not crs.isValid():
+                return False
+            
+            # Prüfe, ob es Layer im Projekt gibt (außer dem THW Toolbox Marker Layer)
+            project_layers = QgsProject.instance().mapLayers().values()
+            # Zähle Layer, die nicht unser eigener Marker-Layer sind
+            other_layers = [lyr for lyr in project_layers if lyr.name() != "THW Toolbox Marker"]
+            
+            # Wenn keine anderen Layer vorhanden sind, ist wahrscheinlich keine Karte geladen
+            if len(other_layers) == 0:
+                return False
+            
+            return True
+        except Exception as e:
+            print(f"DEBUG: Fehler bei _check_map_available: {e}")
+            return False
 
     def _show_error_alert(self, title, message, details=None):
         """Zeigt einen Fehler-Alert mit optionalen Details."""
@@ -344,11 +373,35 @@ class THWToolboxPlugin:
     def activate(self):
         print("DEBUG: Plugin wird aktiviert")
         
+        # Prüfe ZUERST, ob eine Karte vorhanden ist
+        if not self._check_map_available():
+            self._show_error_alert(
+                "Keine Karte vorhanden",
+                "Bitte ziehen Sie zuerst eine Karte in das Projekt ein.",
+                "Das Plugin benötigt eine Karte mit einem Koordinatensystem (CRS), um funktionieren zu können.\n\n"
+                "So fügen Sie eine Karte hinzu:\n"
+                "1. Gehen Sie zu 'Browser' im QGIS-Fenster\n"
+                "2. Ziehen Sie eine Karte (z.B. OpenStreetMap) in das Projekt\n"
+                "3. Aktivieren Sie das Plugin erneut"
+            )
+            # Plugin nicht aktivieren - Checkbox zurücksetzen
+            if self.action:
+                self.action.setChecked(False)
+            return
+        
         # Bereinige alte temporäre Dateien beim Start
         self._cleanup_temp_files()
         
         self._init_layer()
         print(f"DEBUG: Layer initialisiert: {self.layer}")
+        
+        # Prüfe erneut, ob der Layer erfolgreich initialisiert wurde
+        if not self.layer:
+            # Layer konnte nicht initialisiert werden (z.B. wegen fehlender Karte)
+            if self.action:
+                self.action.setChecked(False)
+            return
+        
         self._init_dock()
         # Drag & Drop
         if not self.drop_filter:
@@ -404,6 +457,12 @@ class THWToolboxPlugin:
 
     def _init_layer(self):
         print("DEBUG: _init_layer wird aufgerufen")
+        
+        # Prüfe, ob eine Karte vorhanden ist (sollte bereits in activate() geprüft worden sein, aber zur Sicherheit)
+        if not self._check_map_available():
+            print("DEBUG: Keine Karte vorhanden, kann Layer nicht initialisieren")
+            return
+        
         proj = QgsProject.instance()
         pfile = proj.fileName()
         print(f"DEBUG: Projektdatei: {pfile}")
@@ -538,6 +597,19 @@ class THWToolboxPlugin:
     def _update_layer_fields(self, old_layer, gpkg, lname):
         """Aktualisiert einen bestehenden Layer mit neuen Feldern."""
         try:
+            # Prüfe, ob eine Karte vorhanden ist
+            if not self._check_map_available():
+                self._show_error_alert(
+                    "Keine Karte vorhanden",
+                    "Bitte ziehen Sie zuerst eine Karte in das Projekt ein.",
+                    "Das Plugin benötigt eine Karte mit einem Koordinatensystem (CRS), um den Layer zu aktualisieren.\n\n"
+                    "So fügen Sie eine Karte hinzu:\n"
+                    "1. Gehen Sie zu 'Browser' im QGIS-Fenster\n"
+                    "2. Ziehen Sie eine Karte (z.B. OpenStreetMap) in das Projekt\n"
+                    "3. Versuchen Sie es erneut"
+                )
+                return
+            
             crs = self.canvas.mapSettings().destinationCrs().authid()
             mem = QgsVectorLayer(f"Point?crs={crs}", "temp", "memory")
             dp = mem.dataProvider()
@@ -867,6 +939,9 @@ class THWToolboxPlugin:
             # Aktualisiere Referenzen in Tools
             self._update_tool_references()
             
+            # Renderer neu initialisieren, damit die Symbole wieder angezeigt werden
+            self._init_renderer(new_layer)
+            
             # Versuche die alte Datei zu löschen (optional, da sie nicht mehr verwendet wird)
             try:
                 # Warte kurz, damit QGIS die Datei freigibt
@@ -1035,6 +1110,20 @@ class THWToolboxPlugin:
 
     def _place_feature(self, svg_path, point):
         print(f"DEBUG: _place_feature aufgerufen mit svg_path={svg_path}, point={point}")
+        
+        # Prüfe, ob eine Karte vorhanden ist
+        if not self._check_map_available():
+            self._show_error_alert(
+                "Keine Karte vorhanden",
+                "Bitte ziehen Sie zuerst eine Karte in das Projekt ein.",
+                "Das Plugin benötigt eine Karte mit einem Koordinatensystem (CRS), um Symbole platzieren zu können.\n\n"
+                "So fügen Sie eine Karte hinzu:\n"
+                "1. Gehen Sie zu 'Browser' im QGIS-Fenster\n"
+                "2. Ziehen Sie eine Karte (z.B. OpenStreetMap) in das Projekt\n"
+                "3. Versuchen Sie erneut, ein Symbol zu platzieren"
+            )
+            return
+        
         if not self.layer:
             print("DEBUG: self.layer ist None, beende _place_feature")
             return

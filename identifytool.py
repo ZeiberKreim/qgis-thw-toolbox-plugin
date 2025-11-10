@@ -29,21 +29,19 @@ class FeatureDock(QDockWidget):
         
         # Platzhalter-Text für leeren Zustand
         self.placeholder_label = QLabel()
-        self.placeholder_label.setAlignment(Qt.AlignCenter)
+        self.placeholder_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.placeholder_label.setWordWrap(True)
-        self.placeholder_label.setStyleSheet("QLabel { color: #666; font-size: 12px; padding: 20px; }")
+        self.placeholder_label.setStyleSheet("QLabel { color: #666; padding: 20px; }")
         self.main_layout.addWidget(self.placeholder_label)
         
         # UTM 32N Koordinaten mit Kopier-Button
         coord_layout = QHBoxLayout()
         
         self.utm32n_label = QLabel("")
-        self.utm32n_label.setAlignment(Qt.AlignCenter)
-        self.utm32n_label.setStyleSheet("QLabel { color: #2E86AB; font-size: 12px; font-weight: bold; }")
+        self.utm32n_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         coord_layout.addWidget(self.utm32n_label)
         
         self.btn_copy_coords = QPushButton("Kopieren")
-        self.btn_copy_coords.setStyleSheet("QPushButton { background-color: #2E86AB; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-size: 10px; } QPushButton:hover { background-color: #1B5A7A; }")
         self.btn_copy_coords.setMaximumWidth(60)
         coord_layout.addWidget(self.btn_copy_coords)
         
@@ -95,12 +93,6 @@ class FeatureDock(QDockWidget):
         self.show_label_checkbox = QCheckBox("Label anzeigen")
         self.main_layout.addWidget(self.show_label_checkbox)
         
-        # Eindeutige ID anzeigen
-        self.id_label = QLabel("")
-        self.id_label.setAlignment(Qt.AlignCenter)
-        self.id_label.setStyleSheet("QLabel { color: #666; font-size: 10px; font-family: monospace; }")
-        self.main_layout.addWidget(self.id_label)
-        
         # Buttons in horizontalem Layout
         self.button_layout = QHBoxLayout()
         
@@ -128,7 +120,7 @@ class FeatureDock(QDockWidget):
         
         self.svg_label.clear()
         self.svg_label.setText("Kein Marker ausgewählt")
-        self.svg_label.setStyleSheet("QLabel { border: 2px dashed #ccc; background-color: #f9f9f9; color: #999; font-size: 14px; }")
+        self.svg_label.setStyleSheet("QLabel { border: 2px dashed #ccc; background-color: #f9f9f9; color: #999; }")
         
         placeholder_text = """<b>Marker auswählen</b><br><br>
         • Klicken Sie auf einen Marker auf der Karte<br>
@@ -146,7 +138,6 @@ class FeatureDock(QDockWidget):
         self.scale_checkbox.hide()
         self.label_input.hide()
         self.show_label_checkbox.hide()
-        self.id_label.hide()
         self.btn_delete.hide()
         
         # Dock-Titel ohne Koordinaten
@@ -288,7 +279,7 @@ class FeatureDock(QDockWidget):
                 print(f"Alternative SVG-Loading-Methode fehlgeschlagen: {e2}")
             
             self.svg_label.setText("SVG konnte nicht geladen werden")
-            self.svg_label.setStyleSheet("QLabel { border: 2px dashed #ccc; background-color: #f9f9f9; color: #999; font-size: 12px; }")
+            self.svg_label.setStyleSheet("QLabel { border: 2px dashed #ccc; background-color: #f9f9f9; color: #999; }")
         
         # Koordinaten anzeigen
         if feat.geometry():
@@ -315,7 +306,6 @@ class FeatureDock(QDockWidget):
         self.scale_checkbox.show()
         self.label_input.show()
         self.show_label_checkbox.show()
-        self.id_label.show()
         self.btn_delete.show()
         
         # SpinBox und Schieberegler auf aktuelle Größe setzen
@@ -339,18 +329,6 @@ class FeatureDock(QDockWidget):
             show_label = False
         self.label_input.setText(label_text)
         self.show_label_checkbox.setChecked(show_label)
-        
-        # Eindeutige ID anzeigen
-        try:
-            unique_id = feat.attribute("unique_id") or ""
-            if unique_id:
-                # Zeige nur die ersten 8 Zeichen der UUID für bessere Lesbarkeit
-                short_id = unique_id[:8] + "..."
-                self.id_label.setText(f"ID: {short_id}")
-            else:
-                self.id_label.setText("ID: Nicht verfügbar")
-        except:
-            self.id_label.setText("ID: Nicht verfügbar")
         
         # Buttons, SpinBox, Schieberegler und Checkbox neu verbinden
         self.btn_delete.clicked.disconnect() if self.btn_delete.receivers(self.btn_delete.clicked) > 0 else None
@@ -421,7 +399,6 @@ class FeatureDock(QDockWidget):
             clipboard.setText(self.current_utm_coords)
             # Kurze visuelle Bestätigung
             self.btn_copy_coords.setText("Kopiert!")
-            self.btn_copy_coords.setStyleSheet("QPushButton { background-color: #28a745; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-size: 10px; }")
             
             # Nach 1 Sekunde zurücksetzen
             QTimer.singleShot(1000, self.reset_copy_button)
@@ -429,7 +406,6 @@ class FeatureDock(QDockWidget):
     def reset_copy_button(self):
         """Setzt den Kopier-Button zurück"""
         self.btn_copy_coords.setText("Kopieren")
-        self.btn_copy_coords.setStyleSheet("QPushButton { background-color: #2E86AB; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-size: 10px; } QPushButton:hover { background-color: #1B5A7A; }")
         
     def on_size_change(self, value):
         self.layer_manager.resize_feature(self.feat.id(), value)

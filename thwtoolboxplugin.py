@@ -975,6 +975,15 @@ class THWToolboxPlugin:
                         
                 except Exception as e:
                     print(f"DEBUG: Fehler beim Entfernen des temp_files Verzeichnisses: {e}")
+            
+            # 4. Entferne leeren tmp-Ordner falls er leer ist
+            if os.path.exists(tmp_dir):
+                try:
+                    if not os.listdir(tmp_dir):  # Wenn der Ordner leer ist
+                        os.rmdir(tmp_dir)
+                        print(f"DEBUG: Leerer tmp-Ordner entfernt: {tmp_dir}")
+                except Exception as e:
+                    print(f"DEBUG: Fehler beim Entfernen des tmp-Ordners: {e}")
                     
         except Exception as e:
             print(f"DEBUG: Fehler beim Aufräumen temporärer Dateien: {e}")

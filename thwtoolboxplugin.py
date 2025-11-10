@@ -303,7 +303,8 @@ class THWToolboxPlugin:
     def initGui(self):
         icon = QIcon(os.path.join(self.plugin_dir, "icons", "icon.svg"))
         self.action = QAction(icon, "THW Toolbox", self.iface.mainWindow())
-        self.action.triggered.connect(self.activate)
+        self.action.setCheckable(True)  # Macht das Symbol zu einem Toggle-Button
+        self.action.triggered.connect(self.toggle_plugin)
         self.iface.addToolBarIcon(self.action)
         self.iface.addPluginToMenu("THW Toolbox", self.action)
         
@@ -316,6 +317,10 @@ class THWToolboxPlugin:
         QgsProject.instance().writeProject.connect(self._on_project_save)
 
     def unload(self):
+        # Plugin deaktivieren falls aktiv
+        if self.action and self.action.isChecked():
+            self.deactivate()
+            
         if self.dock:
             self.iface.removeDockWidget(self.dock)
         if self.drop_filter:
@@ -365,6 +370,37 @@ class THWToolboxPlugin:
         if not self.move_tool:
             self.move_tool = MoveTool(self.canvas, self)
         self.canvas.setMapTool(self.move_tool)
+        
+        # Plugin-Symbol als aktiv markieren
+        if self.action:
+            self.action.setChecked(True)
+
+    def toggle_plugin(self):
+        """Schaltet das Plugin ein/aus basierend auf dem aktuellen Zustand des Symbols."""
+        if self.action.isChecked():
+            self.activate()
+        else:
+            self.deactivate()
+
+    def deactivate(self):
+        """Deaktiviert das Plugin und setzt das Symbol zurück."""
+        print("DEBUG: Plugin wird deaktiviert")
+        
+        # Canvas-Tool zurücksetzen
+        if self.canvas.mapTool() == self.move_tool:
+            self.canvas.unsetMapTool(self.move_tool)
+        
+        # Dock verstecken
+        if self.dock:
+            self.dock.hide()
+        
+        # Feature-Dock verstecken
+        if self.ident_tool and hasattr(self.ident_tool, 'feature_dock'):
+            self.ident_tool.feature_dock.hide()
+        
+        # Plugin-Symbol als inaktiv markieren
+        if self.action:
+            self.action.setChecked(False)
 
     def _init_layer(self):
         print("DEBUG: _init_layer wird aufgerufen")
@@ -388,7 +424,11 @@ class THWToolboxPlugin:
             base = os.path.splitext(pfile)[0] + "_taktischezeichen"
             gpkg = base + ".gpkg"
         else:
-            # Wenn kein Projekt gespeichert ist, erstelle eindeutige Datei im Plugin-Ordner
+            # Wenn kein Projekt gespeichert ist, erstelle eindeutige Datei im tmp-Ordner
+            # Erstelle tmp-Ordner falls er nicht existiert
+            tmp_dir = os.path.join(self.plugin_dir, "tmp")
+            os.makedirs(tmp_dir, exist_ok=True)
+            
             # Verwende Projekt-ID oder Zeitstempel für Eindeutigkeit
             proj_id = proj.title() or "unnamed"
             # Erstelle sicheren Dateinamen
@@ -400,7 +440,7 @@ class THWToolboxPlugin:
             timestamp = int(time.time())
             safe_name = f"{safe_name}_{timestamp}"
             
-            gpkg = os.path.join(self.plugin_dir, f"{safe_name}_taktischezeichen.gpkg")
+            gpkg = os.path.join(tmp_dir, f"{safe_name}_taktischezeichen.gpkg")
             print(f"DEBUG: Erstelle eindeutige Datei für ungespeichertes Projekt: {gpkg}")
         
         lname = "taktische_zeichen"
@@ -855,9 +895,18 @@ class THWToolboxPlugin:
             import time
             import shutil
             
-            # 1. Bereinige alte GeoPackage-Dateien im Plugin-Ordner
-            temp_pattern = os.path.join(self.plugin_dir, "*_taktischezeichen.gpkg")
-            temp_files = glob.glob(temp_pattern)
+            # 1. Bereinige alte GeoPackage-Dateien im tmp-Ordner
+            tmp_dir = os.path.join(self.plugin_dir, "tmp")
+            if os.path.exists(tmp_dir):
+                temp_pattern = os.path.join(tmp_dir, "*_taktischezeichen.gpkg")
+                temp_files = glob.glob(temp_pattern)
+            else:
+                temp_files = []
+            
+            # Auch alte Dateien im Plugin-Root-Ordner bereinigen (für Rückwärtskompatibilität)
+            old_pattern = os.path.join(self.plugin_dir, "*_taktischezeichen.gpkg")
+            old_files = glob.glob(old_pattern)
+            temp_files.extend(old_files)
             
             current_time = time.time()
             cleanup_threshold = 24 * 60 * 60  # 24 Stunden
@@ -1085,8 +1134,14 @@ class THWToolboxPlugin:
         self.layer.startEditing()
         result = self.layer.dataProvider().addFeature(f)
         print(f"DEBUG: Feature hinzugefügt: {result}")
+        
         self.layer.commitChanges()
         print("DEBUG: Änderungen committet")
+        
+        # Hole die Feature-ID nach dem Commit (dann ist sie korrekt gesetzt)
+        new_feature_id = f.id()
+        print(f"DEBUG: Neue Feature-ID nach Commit: {new_feature_id}")
+        
         self.layer.updateExtents()
         print("DEBUG: Extents aktualisiert")
         
@@ -1096,6 +1151,33 @@ class THWToolboxPlugin:
         # Renderer aktualisieren
         print("DEBUG: Aktualisiere Renderer")
         self._update_renderer()
+        
+        # Neues Feature automatisch auswählen und im Dock anzeigen
+        if result and self.ident_tool and hasattr(self.ident_tool, 'feature_dock'):
+            print("DEBUG: Wähle neues Feature automatisch aus")
+            
+            # Finde das neueste Feature im Layer (das gerade hinzugefügte)
+            # Da die Feature-ID möglicherweise noch nicht korrekt ist, suchen wir nach dem Feature mit den gleichen Attributen
+            latest_feature = None
+            for feature in self.layer.getFeatures():
+                if (feature.attribute("unique_id") == f.attribute("unique_id") or 
+                    (feature.attribute("svg_path") == f.attribute("svg_path") and 
+                     feature.geometry().distance(QgsGeometry.fromPointXY(point)) < 0.1)):
+                    latest_feature = feature
+                    break
+            
+            if latest_feature and latest_feature.isValid():
+                print(f"DEBUG: Gefundenes Feature ID: {latest_feature.id()}")
+                # Zeige das Feature im Dock an
+                self.ident_tool.feature_dock.show_feature(latest_feature, self)
+                # Aktiviere den Move-Modus für das neue Feature
+                if hasattr(self, 'move_tool'):
+                    self.move_tool.moving_feature = latest_feature
+                    self.move_tool.set_move_mode(True)
+                    self.canvas.setCursor(Qt.ClosedHandCursor)
+                print(f"DEBUG: Feature {latest_feature.id()} automatisch ausgewählt und im Dock angezeigt")
+            else:
+                print("DEBUG: Konnte das neue Feature nicht finden")
 
     # Identify callbacks
     def delete_feature(self, fid):

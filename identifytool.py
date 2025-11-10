@@ -99,7 +99,7 @@ class FeatureDock(QDockWidget):
         
         self.main_layout.addLayout(rotation_layout)
         
-        # Label-Sektion
+        # Label-Sektion (vorerst ausgeblendet, Code bleibt für später erhalten)
         label_layout = QVBoxLayout()
         self.label_text_label = QLabel("Label:")
         label_layout.addWidget(self.label_text_label)
@@ -111,9 +111,14 @@ class FeatureDock(QDockWidget):
         
         self.main_layout.addLayout(label_layout)
         
-        # Label-Anzeige-Checkbox
+        # Label-Anzeige-Checkbox (vorerst ausgeblendet, Code bleibt für später erhalten)
         self.show_label_checkbox = QCheckBox("Label anzeigen")
         self.main_layout.addWidget(self.show_label_checkbox)
+        
+        # Label-Funktion vorerst ausblenden
+        self.label_text_label.hide()
+        self.label_input.hide()
+        self.show_label_checkbox.hide()
         
         # Weißer Hintergrund-Checkbox
         self.white_background_checkbox = QCheckBox("Weißer Hintergrund")
@@ -345,9 +350,10 @@ class FeatureDock(QDockWidget):
         self.rotation_label.show()
         self.rotation_slider.show()
         self.rotation_value_label.show()
-        self.label_text_label.show()
-        self.label_input.show()
-        self.show_label_checkbox.show()
+        # Label-Funktion vorerst ausgeblendet (Code bleibt für später erhalten)
+        # self.label_text_label.show()
+        # self.label_input.show()
+        # self.show_label_checkbox.show()
         self.white_background_checkbox.show()
         self.btn_delete.show()
         

@@ -15,7 +15,7 @@ from qgis.core import (
     QgsVectorFileWriter, QgsProperty, QgsSingleSymbolRenderer,
     QgsSymbolLayer, QgsFeatureRequest, QgsRendererCategory, QgsCategorizedSymbolRenderer, QgsUnitTypes, QgsMapLayer,
     QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings, QgsVectorLayerSimpleLabeling,
-    QgsSimpleMarkerSymbolLayer
+    QgsSimpleMarkerSymbolLayer, Qgis
 )
 import time
 from qgis.PyQt.QtCore import QVariant
@@ -802,43 +802,166 @@ class THWToolboxPlugin:
             
             # Text-Format konfigurieren
             text_format = QgsTextFormat()
-            text_format.setSize(10)  # Kleinere Schriftgröße
+            text_format.setSize(200)  # Schriftgröße (deutlich größer für bessere Lesbarkeit)
+            text_format.setSizeUnit(QgsUnitTypes.RenderPoints)  # Einheit: Punkte
             text_format.setColor(Qt.black)
+            # Verwende fette Schrift für bessere Sichtbarkeit
+            font = text_format.font()
+            font.setBold(True)
+            text_format.setFont(font)
             
             # Buffer-Einstellungen für bessere Lesbarkeit
             buffer_settings = QgsTextBufferSettings()
             buffer_settings.setEnabled(True)
-            buffer_settings.setSize(0.5)  # Dünnerer Buffer
+            buffer_settings.setSize(20.0)  # Buffer-Größe (größer für bessere Lesbarkeit)
+            buffer_settings.setSizeUnit(QgsUnitTypes.RenderPoints)  # Einheit: Punkte
             buffer_settings.setColor(Qt.white)
             text_format.setBuffer(buffer_settings)
             
             label_settings.setFormat(text_format)
             
-            # Label-Feld und Bedingung setzen
+            # Label-Feld setzen
             label_settings.fieldName = "label"
-            label_settings.enabled = True
+            label_settings.isExpression = False
             
-            # Nur Labels anzeigen, wenn show_label = True UND label nicht leer ist
-            label_settings.setDataDefinedProperty(
-                QgsPalLayerSettings.Show,
-                QgsProperty.fromExpression("show_label AND label != ''")
-            )
+            # Expression: Nur anzeigen wenn show_label = 1 (true) und label nicht leer
+            # Verwende dataDefinedProperties() statt setDataDefinedProperty()
+            # Vereinfachte Expression für bessere Kompatibilität
+            expr = 'CASE WHEN "show_label" = 1 AND "label" IS NOT NULL AND "label" <> \'\' THEN 1 ELSE 0 END'
+            try:
+                # Versuche verschiedene Property-Konstanten
+                # In QGIS 3.x könnte Show ein Integer oder eine Enum sein
+                show_property = QgsProperty.fromExpression(expr)
+                
+                # Versuche verschiedene Methoden, die Property zu setzen
+                try:
+                    # Methode 1: Direkt über dataDefinedProperties()
+                    # Show könnte Property 0 sein
+                    label_settings.dataDefinedProperties().setProperty(0, show_property)
+                    print(f"DEBUG: Label-Expression gesetzt (Property 0): {expr}")
+                except Exception as e1:
+                    print(f"DEBUG: Methode 1 fehlgeschlagen: {e1}")
+                    try:
+                        # Methode 2: Versuche mit Show als String
+                        if hasattr(QgsPalLayerSettings, 'Show'):
+                            show_attr = getattr(QgsPalLayerSettings, 'Show')
+                            label_settings.dataDefinedProperties().setProperty(show_attr, show_property)
+                            print(f"DEBUG: Label-Expression gesetzt (Show-Attribut): {expr}")
+                        else:
+                            raise Exception("Show-Attribut nicht gefunden")
+                    except Exception as e2:
+                        print(f"DEBUG: Methode 2 fehlgeschlagen: {e2}")
+                        # Methode 3: Verwende displayField als Expression mit Filter
+                        # Setze das Label-Feld als Expression, die die Bedingung prüft
+                        label_settings.isExpression = True
+                        label_settings.fieldName = 'CASE WHEN "show_label" = 1 AND "label" IS NOT NULL AND "label" <> \'\' THEN "label" ELSE \'\' END'
+                        print(f"DEBUG: Label-Expression als Feld-Expression gesetzt: {label_settings.fieldName}")
+            except Exception as e:
+                print(f"DEBUG: Fehler beim Setzen der Expression: {e}")
+                import traceback
+                traceback.print_exc()
+                # Fallback: Verwende Expression im Feld-Namen
+                try:
+                    expr_simple = 'CASE WHEN "show_label" = 1 THEN "label" ELSE \'\' END'
+                    label_settings.isExpression = True
+                    label_settings.fieldName = expr_simple
+                    print(f"DEBUG: Alternative Label-Expression als Feld-Expression gesetzt: {expr_simple}")
+                except Exception as e2:
+                    print(f"DEBUG: Auch alternative Expression fehlgeschlagen: {e2}")
+                    print("DEBUG: Labels werden ohne Filter angezeigt")
             
-            # Label-Positionierung - rechts neben dem Symbol
-            label_settings.placement = QgsPalLayerSettings.OffsetPoint
-            label_settings.offsetType = QgsPalLayerSettings.FromPoint
-            label_settings.dist = 5.0  # Größerer Abstand vom Symbol
-            label_settings.offsetX = 5.0  # Horizontaler Offset
-            label_settings.offsetY = 0.0  # Vertikaler Offset
+            # Label-Positionierung - unter dem Symbol
+            # Verwende Qgis.LabelPlacement Enum statt Integer
+            try:
+                # Versuche verschiedene Enum-Werte für AroundPoint (um das Symbol herum)
+                if hasattr(Qgis, 'LabelPlacement'):
+                    # QGIS 3.x: LabelPlacement ist in Qgis verschoben
+                    # AroundPoint erlaubt Positionierung um das Symbol herum
+                    if hasattr(Qgis.LabelPlacement, 'AroundPoint'):
+                        label_settings.placement = Qgis.LabelPlacement.AroundPoint
+                    elif hasattr(Qgis.LabelPlacement, 'OffsetPoint'):
+                        label_settings.placement = Qgis.LabelPlacement.OffsetPoint
+                    else:
+                        # Versuche mit Integer-Wert (0 = AroundPoint)
+                        label_settings.placement = 0
+                    print(f"DEBUG: Placement gesetzt: {label_settings.placement}")
+                elif hasattr(QgsPalLayerSettings, 'AroundPoint'):
+                    # Fallback für ältere Versionen
+                    label_settings.placement = QgsPalLayerSettings.AroundPoint
+                    print(f"DEBUG: Placement gesetzt (QgsPalLayerSettings): {label_settings.placement}")
+                else:
+                    # Letzter Fallback: Versuche mit Integer (0 = AroundPoint)
+                    label_settings.placement = 0
+                    print(f"DEBUG: Placement gesetzt (Integer): {label_settings.placement}")
+            except Exception as e:
+                print(f"DEBUG: Fehler beim Setzen von placement: {e}")
+                import traceback
+                traceback.print_exc()
+                # Verwende Standard-Placement
+                try:
+                    if hasattr(Qgis, 'LabelPlacement'):
+                        label_settings.placement = Qgis.LabelPlacement.AroundPoint
+                    else:
+                        label_settings.placement = 0
+                except:
+                    label_settings.placement = 0
+            
+            # quadOffset für Positionierung - unter dem Symbol (unten)
+            try:
+                if hasattr(Qgis, 'LabelQuadrant'):
+                    # QGIS 3.x: LabelQuadrant ist in Qgis verschoben
+                    # Bottom = unter dem Symbol
+                    if hasattr(Qgis.LabelQuadrant, 'Bottom'):
+                        label_settings.quadOffset = Qgis.LabelQuadrant.Bottom
+                    elif hasattr(Qgis.LabelQuadrant, 'BottomCenter'):
+                        label_settings.quadOffset = Qgis.LabelQuadrant.BottomCenter
+                    elif hasattr(Qgis.LabelQuadrant, 'BottomLeft'):
+                        label_settings.quadOffset = Qgis.LabelQuadrant.BottomLeft
+                    elif hasattr(Qgis.LabelQuadrant, 'BottomRight'):
+                        label_settings.quadOffset = Qgis.LabelQuadrant.BottomRight
+                    else:
+                        # Versuche mit Integer-Wert (6 = Bottom in manchen Versionen)
+                        label_settings.quadOffset = 6
+                    print(f"DEBUG: quadOffset gesetzt (unter Symbol): {label_settings.quadOffset}")
+                elif hasattr(Qgis, 'QuadrantPosition'):
+                    # Alternative: QuadrantPosition
+                    if hasattr(Qgis.QuadrantPosition, 'Bottom'):
+                        label_settings.quadOffset = Qgis.QuadrantPosition.Bottom
+                    elif hasattr(Qgis.QuadrantPosition, 'BottomCenter'):
+                        label_settings.quadOffset = Qgis.QuadrantPosition.BottomCenter
+                    else:
+                        label_settings.quadOffset = 6
+                    print(f"DEBUG: quadOffset gesetzt (QuadrantPosition): {label_settings.quadOffset}")
+                else:
+                    # Fallback: Versuche mit Integer (6 = Bottom)
+                    try:
+                        label_settings.quadOffset = 6  # Bottom
+                        print(f"DEBUG: quadOffset gesetzt (Integer 6 = Bottom)")
+                    except:
+                        print("DEBUG: LabelQuadrant/QuadrantPosition nicht verfügbar, überspringe quadOffset")
+            except Exception as e:
+                print(f"DEBUG: Fehler beim Setzen von quadOffset: {e}")
+                import traceback
+                traceback.print_exc()
+                # Überspringe quadOffset, wenn es nicht funktioniert
+                pass
+            
+            # Offset-Werte in Map Units - vertikaler Offset nach unten
+            label_settings.xOffset = 0.0  # Horizontaler Offset (zentriert)
+            label_settings.yOffset = -3.0  # Vertikaler Offset nach unten (negativ = nach unten, größerer Abstand)
             
             # Labeling auf Layer anwenden
             layer.setLabelsEnabled(True)
             layer.setLabeling(QgsVectorLayerSimpleLabeling(label_settings))
             
             print("DEBUG: Labeling erfolgreich konfiguriert")
+            print(f"DEBUG: Label-Feld: {label_settings.fieldName}")
+            print(f"DEBUG: Labels aktiviert: {layer.labelsEnabled()}")
             
         except Exception as e:
             print(f"DEBUG: Fehler beim Konfigurieren des Labelings: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _update_renderer(self):
         """Aktualisiert den Renderer mit allen Features."""
@@ -1445,8 +1568,19 @@ class THWToolboxPlugin:
         self.layer.changeAttributeValue(fid, idx, label_text)
         self.layer.commitChanges()
         
-        # Renderer aktualisieren für Label-Anzeige
-        self._update_renderer()
+        # Feature-Daten für Debug ausgeben
+        feature = self.layer.getFeature(fid)
+        if feature.isValid():
+            print(f"DEBUG: update_feature_label - Feature {fid}: show_label={feature.attribute('show_label')}, label='{feature.attribute('label')}'")
+        
+        # Labeling neu konfigurieren und Layer aktualisieren
+        self._setup_labeling(self.layer)
+        
+        # Layer explizit aktualisieren
+        self.layer.triggerRepaint()
+        if hasattr(self.iface, 'layerTreeView'):
+            self.iface.layerTreeView().refreshLayerSymbology(self.layer.id())
+        self.canvas.refresh()
         
     def toggle_label_visibility(self, fid, show_label):
         """Schaltet die Label-Anzeige für ein Feature ein/aus"""
@@ -1458,8 +1592,19 @@ class THWToolboxPlugin:
         self.layer.changeAttributeValue(fid, idx, show_label)
         self.layer.commitChanges()
         
-        # Renderer aktualisieren für Label-Anzeige
-        self._update_renderer()
+        # Feature-Daten für Debug ausgeben
+        feature = self.layer.getFeature(fid)
+        if feature.isValid():
+            print(f"DEBUG: toggle_label_visibility - Feature {fid}: show_label={feature.attribute('show_label')}, label='{feature.attribute('label')}'")
+        
+        # Labeling neu konfigurieren und Layer aktualisieren
+        self._setup_labeling(self.layer)
+        
+        # Layer explizit aktualisieren
+        self.layer.triggerRepaint()
+        if hasattr(self.iface, 'layerTreeView'):
+            self.iface.layerTreeView().refreshLayerSymbology(self.layer.id())
+        self.canvas.refresh()
         
     def toggle_white_background(self, fid, white_background):
         """Schaltet den weißen Hintergrund für ein Feature ein/aus"""

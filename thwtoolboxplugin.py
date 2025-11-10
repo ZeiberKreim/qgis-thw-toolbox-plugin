@@ -1,7 +1,7 @@
 import os
 import uuid
 from PyQt5.QtCore import Qt, QSize, QEvent, QObject, QVariant
-from PyQt5.QtGui import QIcon, QDrag, QPixmap
+from PyQt5.QtGui import QIcon, QDrag, QPixmap, QColor
 from PyQt5.QtWidgets import (
     QAction, QDockWidget, QWidget, QVBoxLayout,
     QListWidget, QListWidgetItem, QLabel, QDialog,
@@ -14,7 +14,8 @@ from qgis.core import (
     QgsMarkerSymbol, QgsSvgMarkerSymbolLayer,
     QgsVectorFileWriter, QgsProperty, QgsSingleSymbolRenderer,
     QgsSymbolLayer, QgsFeatureRequest, QgsRendererCategory, QgsCategorizedSymbolRenderer, QgsUnitTypes, QgsMapLayer,
-    QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings, QgsVectorLayerSimpleLabeling
+    QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings, QgsVectorLayerSimpleLabeling,
+    QgsSimpleMarkerSymbolLayer
 )
 import time
 from qgis.PyQt.QtCore import QVariant
@@ -563,6 +564,8 @@ class THWToolboxPlugin:
                 QgsField("unique_id", QVariant.String),
                 QgsField("label", QVariant.String),
                 QgsField("show_label", QVariant.Bool),
+                QgsField("white_background", QVariant.Bool),
+                QgsField("rotation", QVariant.Double),
             ])
             mem.updateFields()
             
@@ -622,6 +625,8 @@ class THWToolboxPlugin:
                 QgsField("unique_id", QVariant.String),
                 QgsField("label", QVariant.String),
                 QgsField("show_label", QVariant.Bool),
+                QgsField("white_background", QVariant.Bool),
+                QgsField("rotation", QVariant.Double),
             ])
             mem.updateFields()
             
@@ -648,6 +653,8 @@ class THWToolboxPlugin:
                     new_feat.setAttribute("label", default_label)
                 
                 new_feat.setAttribute("show_label", feat.attribute("show_label") if "show_label" in existing_fields else False)
+                new_feat.setAttribute("white_background", feat.attribute("white_background") if "white_background" in existing_fields else False)
+                new_feat.setAttribute("rotation", feat.attribute("rotation") if "rotation" in existing_fields else 0.0)
                 mem.dataProvider().addFeature(new_feat)
             
             # Temporäre Datei verwenden, um Konflikte zu vermeiden
@@ -712,7 +719,20 @@ class THWToolboxPlugin:
                 svg_content_feat = feat.attribute("svg_content") if "svg_content" in [field.name() for field in layer.fields()] else ""
                 size = feat.attribute("size")
                 scale_with_map = feat.attribute("scale_with_map")
+                white_background = feat.attribute("white_background") if "white_background" in [field.name() for field in layer.fields()] else False
+                rotation = feat.attribute("rotation") if "rotation" in [field.name() for field in layer.fields()] else 0.0
                 sym = QgsMarkerSymbol.createSimple({})
+                
+                # Wenn weißer Hintergrund aktiviert ist, füge einen weißen Kreis als Hintergrund hinzu
+                if white_background:
+                    # Erstelle einen weißen Kreis als Hintergrund (etwas größer als das Symbol)
+                    bg_layer = QgsSimpleMarkerSymbolLayer(QgsSimpleMarkerSymbolLayer.Circle, size * 1.2, 0)
+                    bg_layer.setColor(QColor(255, 255, 255))  # Weiß
+                    bg_layer.setStrokeColor(QColor(255, 255, 255))  # Weiß
+                    bg_layer.setStrokeWidth(0)
+                    if not scale_with_map:
+                        bg_layer.setSizeUnit(QgsUnitTypes.RenderMapUnits)
+                    sym.changeSymbolLayer(0, bg_layer)
                 
                 # Verwende SVG-Inhalt direkt aus dem Speicher
                 if svg_content_feat and svg_content_feat.strip():
@@ -737,7 +757,15 @@ class THWToolboxPlugin:
                 
                 if not scale_with_map:
                     ly.setSizeUnit(QgsUnitTypes.RenderMapUnits)
-                sym.changeSymbolLayer(0, ly)
+                
+                # Rotation anwenden
+                ly.setAngle(rotation)
+                
+                # SVG-Layer hinzufügen (als zusätzliches Layer, wenn Hintergrund vorhanden ist)
+                if white_background:
+                    sym.appendSymbolLayer(ly)
+                else:
+                    sym.changeSymbolLayer(0, ly)
                 # Verwende den Namen des Features (Dateiname ohne Pfad und ohne .svg) für die Kategorie
                 feature_name = feat.attribute("name") if feat.attribute("name") else os.path.basename(svg_path_feat)
                 # Entferne .svg Endung falls vorhanden
@@ -1138,7 +1166,9 @@ class THWToolboxPlugin:
             "scale_with_map": QVariant.Bool,
             "unique_id": QVariant.String,  # Eindeutige ID für jedes Zeichen
             "label": QVariant.String,  # Label-Text für das Zeichen
-            "show_label": QVariant.Bool  # Ob das Label angezeigt werden soll
+            "show_label": QVariant.Bool,  # Ob das Label angezeigt werden soll
+            "white_background": QVariant.Bool,  # Ob ein weißer Hintergrund angezeigt werden soll
+            "rotation": QVariant.Double  # Rotationswinkel in Grad
         }
         
         existing_fields = {field.name(): field.type() for field in self.layer.fields()}
@@ -1226,6 +1256,8 @@ class THWToolboxPlugin:
         f.setAttribute("unique_id", str(uuid.uuid4()))  # Eindeutige ID generieren
         f.setAttribute("label", default_label)  # Standard-Label aus SVG-Namen
         f.setAttribute("show_label", False)  # Label standardmäßig nicht anzeigen
+        f.setAttribute("white_background", False)  # Weißer Hintergrund standardmäßig nicht aktiviert
+        f.setAttribute("rotation", 0.0)  # Rotation standardmäßig 0 Grad
         
         # Feature zum Layer hinzufügen
         print("DEBUG: Füge Feature zum Layer hinzu")
@@ -1330,6 +1362,8 @@ class THWToolboxPlugin:
             QgsField("unique_id", QVariant.String),
             QgsField("label", QVariant.String),
             QgsField("show_label", QVariant.Bool),
+            QgsField("white_background", QVariant.Bool),
+            QgsField("rotation", QVariant.Double),
         ])
         temp_layer.updateFields()
         
@@ -1355,6 +1389,8 @@ class THWToolboxPlugin:
                     new_feat.setAttribute("label", default_label)
                 
                 new_feat.setAttribute("show_label", feat.attribute("show_label") if "show_label" in [field.name() for field in self.layer.fields()] else False)
+                new_feat.setAttribute("white_background", feat.attribute("white_background") if "white_background" in [field.name() for field in self.layer.fields()] else False)
+                new_feat.setAttribute("rotation", feat.attribute("rotation") if "rotation" in [field.name() for field in self.layer.fields()] else 0.0)
                 temp_layer.dataProvider().addFeature(new_feat)
         
         # Alten Layer aus dem Projekt entfernen
@@ -1423,6 +1459,33 @@ class THWToolboxPlugin:
         self.layer.commitChanges()
         
         # Renderer aktualisieren für Label-Anzeige
+        self._update_renderer()
+        
+    def toggle_white_background(self, fid, white_background):
+        """Schaltet den weißen Hintergrund für ein Feature ein/aus"""
+        if not self.layer:
+            return
+            
+        idx = self.layer.fields().indexFromName("white_background")
+        self.layer.startEditing()
+        self.layer.changeAttributeValue(fid, idx, white_background)
+        self.layer.commitChanges()
+        
+        # Renderer aktualisieren für Hintergrund-Anzeige
+        self._update_renderer()
+        
+    def rotate_feature(self, fid, rotation):
+        """Aktualisiert die Rotation eines Features"""
+        if not self.layer:
+            return
+            
+        idx = self.layer.fields().indexFromName("rotation")
+        self.layer.startEditing()
+        self.layer.changeAttributeValue(fid, idx, rotation)
+        self.layer.commitChanges()
+        self.layer.triggerRepaint()
+        
+        # Renderer aktualisieren
         self._update_renderer()
 
     def export_portable_package(self, export_path):

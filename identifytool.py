@@ -5,7 +5,7 @@ import time
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QPushButton, QInputDialog, 
                            QLabel, QHBoxLayout, QDockWidget, QWidget, QSlider,
-                           QCheckBox, QSpinBox, QApplication, QLineEdit)
+                           QCheckBox, QSpinBox, QApplication, QLineEdit, QSpacerItem, QSizePolicy)
 from PyQt5.QtGui import QPixmap
 from qgis.gui import QgsMapToolIdentify
 from qgis.core import QgsFeatureRequest, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsProject
@@ -49,7 +49,8 @@ class FeatureDock(QDockWidget):
         
         # Größen-SpinBox und Schieberegler
         size_layout = QHBoxLayout()
-        size_layout.addWidget(QLabel("Größe:"))
+        self.size_label = QLabel("Größe:")
+        size_layout.addWidget(self.size_label)
         
         self.size_spinbox = QSpinBox()
         self.size_spinbox.setMinimum(10)  # Minimale Größe
@@ -62,7 +63,8 @@ class FeatureDock(QDockWidget):
         
         # Schieberegler für Größe
         slider_layout = QHBoxLayout()
-        slider_layout.addWidget(QLabel("Größe:"))
+        self.size_slider_label = QLabel("Größe:")
+        slider_layout.addWidget(self.size_slider_label)
         
         self.size_slider = QSlider(Qt.Horizontal)
         self.size_slider.setMinimum(10)  # Minimale Größe
@@ -78,9 +80,29 @@ class FeatureDock(QDockWidget):
         self.scale_checkbox = QCheckBox("Mit Karte skalieren")
         self.main_layout.addWidget(self.scale_checkbox)
         
+        # Rotations-Schieberegler
+        rotation_layout = QHBoxLayout()
+        self.rotation_label = QLabel("Rotation:")
+        rotation_layout.addWidget(self.rotation_label)
+        
+        self.rotation_slider = QSlider(Qt.Horizontal)
+        self.rotation_slider.setMinimum(0)  # 0 Grad
+        self.rotation_slider.setMaximum(360)  # 360 Grad
+        self.rotation_slider.setValue(0)  # Standardwert
+        self.rotation_slider.setTickPosition(QSlider.TicksBelow)
+        self.rotation_slider.setTickInterval(45)  # Alle 45 Grad eine Markierung
+        rotation_layout.addWidget(self.rotation_slider)
+        
+        self.rotation_value_label = QLabel("0°")
+        self.rotation_value_label.setMinimumWidth(40)
+        rotation_layout.addWidget(self.rotation_value_label)
+        
+        self.main_layout.addLayout(rotation_layout)
+        
         # Label-Sektion
         label_layout = QVBoxLayout()
-        label_layout.addWidget(QLabel("Label:"))
+        self.label_text_label = QLabel("Label:")
+        label_layout.addWidget(self.label_text_label)
         
         self.label_input = QLineEdit()
         self.label_input.setPlaceholderText("Label-Text eingeben...")
@@ -93,6 +115,10 @@ class FeatureDock(QDockWidget):
         self.show_label_checkbox = QCheckBox("Label anzeigen")
         self.main_layout.addWidget(self.show_label_checkbox)
         
+        # Weißer Hintergrund-Checkbox
+        self.white_background_checkbox = QCheckBox("Weißer Hintergrund")
+        self.main_layout.addWidget(self.white_background_checkbox)
+        
         # Buttons in horizontalem Layout
         self.button_layout = QHBoxLayout()
         
@@ -100,6 +126,10 @@ class FeatureDock(QDockWidget):
         self.button_layout.addWidget(self.btn_delete)
         
         self.main_layout.addLayout(self.button_layout)
+        
+        # Spacer am Ende hinzufügen, um alles nach oben auszurichten
+        spacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        self.main_layout.addItem(spacer)
         
         # Tracker für letzte Preview-Datei
         self.last_preview_path = None
@@ -124,8 +154,7 @@ class FeatureDock(QDockWidget):
         
         placeholder_text = """<b>Marker auswählen</b><br><br>
         • Klicken Sie auf einen Marker auf der Karte<br>
-        • Oder ziehen Sie ein Symbol aus der Symbolpalette auf die Karte<br><br>
-        Hier werden dann die Details des ausgewählten Markers angezeigt."""
+        • Oder ziehen Sie ein Symbol aus der Symbolpalette auf die Karte"""
         
         self.placeholder_label.setText(placeholder_text)
         self.placeholder_label.show()
@@ -133,11 +162,18 @@ class FeatureDock(QDockWidget):
         # Koordinaten und Steuerelemente verstecken
         self.utm32n_label.hide()
         self.btn_copy_coords.hide()
+        self.size_label.hide()
         self.size_spinbox.hide()
+        self.size_slider_label.hide()
         self.size_slider.hide()
         self.scale_checkbox.hide()
+        self.rotation_label.hide()
+        self.rotation_slider.hide()
+        self.rotation_value_label.hide()
+        self.label_text_label.hide()
         self.label_input.hide()
         self.show_label_checkbox.hide()
+        self.white_background_checkbox.hide()
         self.btn_delete.hide()
         
         # Dock-Titel ohne Koordinaten
@@ -301,11 +337,18 @@ class FeatureDock(QDockWidget):
         
         # Alle Steuerelemente anzeigen
         self.btn_copy_coords.show()
+        self.size_label.show()
         self.size_spinbox.show()
+        self.size_slider_label.show()
         self.size_slider.show()
         self.scale_checkbox.show()
+        self.rotation_label.show()
+        self.rotation_slider.show()
+        self.rotation_value_label.show()
+        self.label_text_label.show()
         self.label_input.show()
         self.show_label_checkbox.show()
+        self.white_background_checkbox.show()
         self.btn_delete.show()
         
         # SpinBox und Schieberegler auf aktuelle Größe setzen
@@ -330,6 +373,21 @@ class FeatureDock(QDockWidget):
         self.label_input.setText(label_text)
         self.show_label_checkbox.setChecked(show_label)
         
+        # Weißer Hintergrund-Wert setzen
+        try:
+            white_background = feat.attribute("white_background") or False
+        except:
+            white_background = False
+        self.white_background_checkbox.setChecked(white_background)
+        
+        # Rotationswert setzen
+        try:
+            rotation = feat.attribute("rotation") or 0.0
+        except:
+            rotation = 0.0
+        self.rotation_slider.setValue(int(rotation))
+        self.rotation_value_label.setText(f"{int(rotation)}°")
+        
         # Buttons, SpinBox, Schieberegler und Checkbox neu verbinden
         self.btn_delete.clicked.disconnect() if self.btn_delete.receivers(self.btn_delete.clicked) > 0 else None
         self.btn_copy_coords.clicked.disconnect() if self.btn_copy_coords.receivers(self.btn_copy_coords.clicked) > 0 else None
@@ -338,6 +396,8 @@ class FeatureDock(QDockWidget):
         self.scale_checkbox.stateChanged.disconnect() if self.scale_checkbox.receivers(self.scale_checkbox.stateChanged) > 0 else None
         self.label_input.textChanged.disconnect() if self.label_input.receivers(self.label_input.textChanged) > 0 else None
         self.show_label_checkbox.stateChanged.disconnect() if self.show_label_checkbox.receivers(self.show_label_checkbox.stateChanged) > 0 else None
+        self.white_background_checkbox.stateChanged.disconnect() if self.white_background_checkbox.receivers(self.white_background_checkbox.stateChanged) > 0 else None
+        self.rotation_slider.valueChanged.disconnect() if self.rotation_slider.receivers(self.rotation_slider.valueChanged) > 0 else None
         
         self.btn_delete.clicked.connect(self.on_delete)
         self.btn_copy_coords.clicked.connect(self.on_copy_coords)
@@ -346,6 +406,8 @@ class FeatureDock(QDockWidget):
         self.scale_checkbox.stateChanged.connect(self.on_scale_toggle)
         self.label_input.textChanged.connect(self.on_label_changed)
         self.show_label_checkbox.stateChanged.connect(self.on_show_label_toggle)
+        self.white_background_checkbox.stateChanged.connect(self.on_white_background_toggle)
+        self.rotation_slider.valueChanged.connect(self.on_rotation_change)
         
         # Synchronisation zwischen SpinBox und Schieberegler
         self.size_spinbox.valueChanged.connect(self.on_spinbox_changed)
@@ -445,6 +507,25 @@ class FeatureDock(QDockWidget):
             
         show_label = state == Qt.Checked
         self.layer_manager.toggle_label_visibility(self.feat.id(), show_label)
+        
+    def on_white_background_toggle(self, state):
+        """Schaltet den weißen Hintergrund ein/aus"""
+        if not hasattr(self, 'feat') or not self.feat:
+            return
+            
+        white_background = state == Qt.Checked
+        self.layer_manager.toggle_white_background(self.feat.id(), white_background)
+        
+    def on_rotation_change(self, value):
+        """Wird aufgerufen, wenn der Rotationsschieberegler geändert wird"""
+        if not hasattr(self, 'feat') or not self.feat:
+            return
+            
+        # Aktualisiere das Label mit dem aktuellen Wert
+        self.rotation_value_label.setText(f"{value}°")
+        
+        # Rotation im Feature aktualisieren
+        self.layer_manager.rotate_feature(self.feat.id(), float(value))
         
     def hideEvent(self, event):
         # Verschieben-Modus deaktivieren wenn Dock geschlossen wird

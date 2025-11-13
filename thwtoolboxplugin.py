@@ -766,15 +766,17 @@ class THWToolboxPlugin:
                     sym.appendSymbolLayer(ly)
                 else:
                     sym.changeSymbolLayer(0, ly)
-                # Verwende den Namen des Features (Dateiname ohne Pfad und ohne .svg) für die Kategorie
+                # Verwende unique_id für die Kategorie, damit jedes Feature individuell skaliert werden kann
+                unique_id = feat.attribute("unique_id") if "unique_id" in [field.name() for field in layer.fields()] else str(feat.id())
+                # Verwende den Namen des Features für die Anzeige (Dateiname ohne Pfad und ohne .svg)
                 feature_name = feat.attribute("name") if feat.attribute("name") else os.path.basename(svg_path_feat)
                 # Entferne .svg Endung falls vorhanden
                 display_name = os.path.splitext(feature_name)[0]
-                cat = QgsRendererCategory(feature_name, sym, display_name)
+                cat = QgsRendererCategory(unique_id, sym, display_name)
                 categories.append(cat)
         
         if categories:
-            renderer = QgsCategorizedSymbolRenderer("name", categories)
+            renderer = QgsCategorizedSymbolRenderer("unique_id", categories)
             layer.setRenderer(renderer)
         else:
             # Fallback: Einfacher Marker-Symbol
@@ -1623,15 +1625,41 @@ class THWToolboxPlugin:
         """Aktualisiert die Rotation eines Features"""
         if not self.layer:
             return
-            
-        idx = self.layer.fields().indexFromName("rotation")
-        self.layer.startEditing()
-        self.layer.changeAttributeValue(fid, idx, rotation)
-        self.layer.commitChanges()
-        self.layer.triggerRepaint()
         
-        # Renderer aktualisieren
-        self._update_renderer()
+        # Rotation direkt im Renderer aktualisieren für flüssige Echtzeit-Updates
+        # Dies ist viel schneller als den gesamten Renderer neu zu erstellen
+        renderer = self.layer.renderer()
+        if renderer and isinstance(renderer, QgsCategorizedSymbolRenderer):
+            # Hole das Feature, um die unique_id zu bekommen
+            feat = self.layer.getFeature(fid)
+            if feat.isValid():
+                unique_id = feat.attribute("unique_id") if "unique_id" in [field.name() for field in self.layer.fields()] else str(fid)
+                # Finde die Kategorie für dieses Feature
+                for cat in renderer.categories():
+                    if cat.value() == unique_id:
+                        # Aktualisiere die Rotation im Symbol
+                        symbol = cat.symbol()
+                        if symbol:
+                            # Durchlaufe alle Symbol-Layer und aktualisiere die Rotation
+                            for i in range(symbol.symbolLayerCount()):
+                                layer = symbol.symbolLayer(i)
+                                if isinstance(layer, QgsSvgMarkerSymbolLayer):
+                                    layer.setAngle(rotation)
+                                elif isinstance(layer, QgsSimpleMarkerSymbolLayer):
+                                    # Für Hintergrund-Layer keine Rotation ändern
+                                    pass
+                        break
+        
+        # Aktualisiere auch den Wert im Feature (für Persistenz)
+        idx = self.layer.fields().indexFromName("rotation")
+        if not self.layer.isEditable():
+            self.layer.startEditing()
+        self.layer.changeAttributeValue(fid, idx, rotation)
+        # Committe nicht bei jedem Update, nur visuell aktualisieren
+        # Das Commit erfolgt automatisch oder bei Bedarf
+        
+        # Canvas sofort aktualisieren für flüssige Anzeige
+        self.layer.triggerRepaint()
 
     def export_portable_package(self, export_path):
         """Exportiert das Plugin als portables Paket.

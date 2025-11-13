@@ -404,6 +404,7 @@ class FeatureDock(QDockWidget):
         self.show_label_checkbox.stateChanged.disconnect() if self.show_label_checkbox.receivers(self.show_label_checkbox.stateChanged) > 0 else None
         self.white_background_checkbox.stateChanged.disconnect() if self.white_background_checkbox.receivers(self.white_background_checkbox.stateChanged) > 0 else None
         self.rotation_slider.valueChanged.disconnect() if self.rotation_slider.receivers(self.rotation_slider.valueChanged) > 0 else None
+        self.rotation_slider.sliderReleased.disconnect() if self.rotation_slider.receivers(self.rotation_slider.sliderReleased) > 0 else None
         
         self.btn_delete.clicked.connect(self.on_delete)
         self.btn_copy_coords.clicked.connect(self.on_copy_coords)
@@ -414,6 +415,7 @@ class FeatureDock(QDockWidget):
         self.show_label_checkbox.stateChanged.connect(self.on_show_label_toggle)
         self.white_background_checkbox.stateChanged.connect(self.on_white_background_toggle)
         self.rotation_slider.valueChanged.connect(self.on_rotation_change)
+        self.rotation_slider.sliderReleased.connect(self.on_rotation_slider_released)
         
         # Synchronisation zwischen SpinBox und Schieberegler
         self.size_spinbox.valueChanged.connect(self.on_spinbox_changed)
@@ -530,8 +532,15 @@ class FeatureDock(QDockWidget):
         # Aktualisiere das Label mit dem aktuellen Wert
         self.rotation_value_label.setText(f"{value}°")
         
-        # Rotation im Feature aktualisieren
+        # Rotation im Feature aktualisieren (visuell sofort, ohne Commit)
         self.layer_manager.rotate_feature(self.feat.id(), float(value))
+    
+    def on_rotation_slider_released(self):
+        """Wird aufgerufen, wenn der Rotationsschieberegler losgelassen wird"""
+        # Committe die Änderungen, wenn der Benutzer fertig ist
+        if hasattr(self, 'layer_manager') and self.layer_manager.layer:
+            if self.layer_manager.layer.isEditable():
+                self.layer_manager.layer.commitChanges()
         
     def hideEvent(self, event):
         # Verschieben-Modus deaktivieren wenn Dock geschlossen wird

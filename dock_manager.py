@@ -8,10 +8,10 @@ from .thwtoolboxplugin_dock import SvgDock
 
 class DockManager:
     def __init__(self, iface, plugin_dir, select_callback):
-        self.iface        = iface
-        self.plugin_dir   = plugin_dir
-        self.select_cb    = select_callback
-        self.dock_widget  = None
+        self.iface = iface
+        self.plugin_dir = plugin_dir
+        self.select_cb = select_callback
+        self.dock_widget = None
 
     def init_dock(self):
         if self.dock_widget:

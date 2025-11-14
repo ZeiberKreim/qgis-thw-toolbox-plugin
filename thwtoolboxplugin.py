@@ -1,26 +1,54 @@
 import os
+import time
 import uuid
-from PyQt5.QtCore import Qt, QSize, QEvent, QObject, QVariant
-from PyQt5.QtGui import QIcon, QDrag, QPixmap, QColor
+
+from PyQt5.QtCore import QEvent, QObject, QSize, Qt, QVariant
+from PyQt5.QtGui import QColor, QDrag, QIcon, QPixmap
 from PyQt5.QtWidgets import (
-    QAction, QDockWidget, QWidget, QVBoxLayout,
-    QListWidget, QListWidgetItem, QLabel, QDialog,
-    QPushButton, QInputDialog, QHBoxLayout, QSlider, QCheckBox,
-    QMessageBox
+    QAction,
+    QCheckBox,
+    QDialog,
+    QDockWidget,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPushButton,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
 )
 from qgis.core import (
-    QgsProject, QgsVectorLayer, QgsField,
-    QgsFeature, QgsGeometry, QgsPointXY,
-    QgsMarkerSymbol, QgsSvgMarkerSymbolLayer,
-    QgsVectorFileWriter, QgsProperty, QgsSingleSymbolRenderer,
-    QgsSymbolLayer, QgsFeatureRequest, QgsRendererCategory, QgsCategorizedSymbolRenderer, QgsUnitTypes, QgsMapLayer,
-    QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings, QgsVectorLayerSimpleLabeling,
-    QgsSimpleMarkerSymbolLayer, Qgis
+    Qgis,
+    QgsCategorizedSymbolRenderer,
+    QgsFeature,
+    QgsFeatureRequest,
+    QgsField,
+    QgsGeometry,
+    QgsMapLayer,
+    QgsMarkerSymbol,
+    QgsPalLayerSettings,
+    QgsPointXY,
+    QgsProject,
+    QgsProperty,
+    QgsRendererCategory,
+    QgsSimpleMarkerSymbolLayer,
+    QgsSingleSymbolRenderer,
+    QgsSvgMarkerSymbolLayer,
+    QgsSymbolLayer,
+    QgsTextBufferSettings,
+    QgsTextFormat,
+    QgsUnitTypes,
+    QgsVectorFileWriter,
+    QgsVectorLayer,
+    QgsVectorLayerSimpleLabeling,
 )
-import time
+from qgis.gui import QgsMapTool, QgsMapToolIdentify
 from qgis.PyQt.QtCore import QVariant
 from qgis.utils import iface
-from qgis.gui import QgsMapTool, QgsMapToolIdentify
+
 from .identifytool import FeatureDock
 from .thwtoolboxplugin_dock import SvgDock
 
@@ -1120,8 +1148,8 @@ class THWToolboxPlugin:
         """Räumt temporäre Dateien im Plugin-Ordner auf."""
         try:
             import glob
-            import time
             import shutil
+            import time
             
             # 1. Bereinige alte GeoPackage-Dateien im tmp-Ordner
             tmp_dir = os.path.join(self.plugin_dir, "tmp")
@@ -1785,8 +1813,8 @@ Hinweis:
             success = self.export_portable_package(export_path)
             if success:
                 # Öffne den Export-Ordner
-                import subprocess
                 import platform
+                import subprocess
                 
                 try:
                     if platform.system() == "Windows":

@@ -1,11 +1,8 @@
-import os
 import logging
-from qgis.core import (
-    QgsProject, QgsVectorLayer, QgsField,
-    QgsFeature, QgsGeometry, QgsPointXY,
-    QgsVectorFileWriter
-)
+import os
+
 from PyQt5.QtCore import QVariant
+from qgis.core import QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsProject, QgsVectorFileWriter, QgsVectorLayer
 
 # Logger konfigurieren
 logger = logging.getLogger(__name__)

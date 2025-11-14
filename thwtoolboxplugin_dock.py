@@ -1,10 +1,19 @@
-import os
 import logging
+import os
 import re
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QListWidget, QListWidgetItem, 
-                           QLabel, QTreeWidget, QTreeWidgetItem, QLineEdit)
-from PyQt5.QtGui import QIcon, QDrag, QPixmap
-from PyQt5.QtCore import Qt, QSize, QMimeData
+
+from PyQt5.QtCore import QMimeData, QSize, Qt
+from PyQt5.QtGui import QDrag, QIcon, QPixmap
+from PyQt5.QtWidgets import (
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 # Logging-Konfiguration
 logging.basicConfig(

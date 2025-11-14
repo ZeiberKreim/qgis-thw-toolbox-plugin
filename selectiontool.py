@@ -1,11 +1,13 @@
 # selectiontool.py
 
 import math
-from PyQt5.QtCore import Qt, QPoint, QRect, QTimer
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor
+
+from PyQt5.QtCore import QPoint, QRect, Qt, QTimer
+from PyQt5.QtGui import QBrush, QColor, QPainter, QPen
 from PyQt5.QtWidgets import QApplication
-from qgis.gui import QgsMapTool, QgsMapCanvas
-from qgis.core import QgsPointXY, QgsGeometry, QgsFeatureRequest, QgsFeature, QgsMapToPixel
+from qgis.core import QgsFeature, QgsFeatureRequest, QgsGeometry, QgsMapToPixel, QgsPointXY
+from qgis.gui import QgsMapCanvas, QgsMapTool
+
 
 class SelectionTool(QgsMapTool):
     """Tool für die visuelle Auswahl von Features mit Border und Resize-Punkten"""

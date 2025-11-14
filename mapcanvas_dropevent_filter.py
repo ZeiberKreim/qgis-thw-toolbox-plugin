@@ -1,5 +1,6 @@
-from PyQt5.QtCore import QObject, QEvent
+from PyQt5.QtCore import QEvent, QObject
 from qgis.core import QgsPointXY
+
 
 class CanvasDropFilter(QObject):
     def __init__(self, canvas, place_feature_callback):

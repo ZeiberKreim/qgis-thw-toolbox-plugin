@@ -2,13 +2,29 @@
 
 import os
 import time
+
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QPushButton, QInputDialog, 
-                           QLabel, QHBoxLayout, QDockWidget, QWidget, QSlider,
-                           QCheckBox, QSpinBox, QApplication, QLineEdit, QSpacerItem, QSizePolicy)
 from PyQt5.QtGui import QPixmap
+from PyQt5.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QDialog,
+    QDockWidget,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QSizePolicy,
+    QSlider,
+    QSpacerItem,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
+)
+from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsFeatureRequest, QgsProject
 from qgis.gui import QgsMapToolIdentify
-from qgis.core import QgsFeatureRequest, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsProject
+
 
 class FeatureDock(QDockWidget):
     def __init__(self, parent=None):

@@ -1,7 +1,10 @@
 import os
-from PyQt5.QtWidgets import QDockWidget, QSizePolicy
+
 from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QDockWidget, QSizePolicy
+
 from .thwtoolboxplugin_dock import SvgDock
+
 
 class DockManager:
     def __init__(self, iface, plugin_dir, select_callback):

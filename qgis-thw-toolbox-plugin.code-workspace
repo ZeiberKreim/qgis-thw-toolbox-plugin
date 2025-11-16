@@ -1,0 +1,17 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "[python]": {
+      "editor.defaultFormatter": "charliermarsh.ruff"
+    },
+    "editor.formatOnSave": true,
+    "ruff.lint.enable": true
+  },
+  "extensions": {
+    "recommendations": ["charliermarsh.ruff"]
+  }
+}

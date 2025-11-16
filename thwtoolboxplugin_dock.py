@@ -1,17 +1,27 @@
-import os
 import logging
+import os
 import re
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QListWidget, QListWidgetItem, 
-                           QLabel, QTreeWidget, QTreeWidgetItem, QLineEdit)
-from PyQt5.QtGui import QIcon, QDrag, QPixmap
-from PyQt5.QtCore import Qt, QSize, QMimeData
+
+from PyQt5.QtCore import QMimeData, QSize, Qt
+from PyQt5.QtGui import QDrag, QIcon, QPixmap
+from PyQt5.QtWidgets import (
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 # Logging-Konfiguration
 logging.basicConfig(
-    filename=os.path.join(os.path.dirname(__file__), 'svg_dock.log'),
+    filename=os.path.join(os.path.dirname(__file__), "svg_dock.log"),
     level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
+
 
 class SvgDock(QWidget):
     def __init__(self, plugin_dir, select_callback):
@@ -54,11 +64,13 @@ class SvgDock(QWidget):
 
     def natural_sort_key(self, text):
         """Erstellt einen Sortierschlüssel für natürliche Sortierung (z.B. xx_1, xx_2, xx_10 statt xx_1, xx_10, xx_2)"""
+
         def convert(text_part):
             # Versuche, den Textteil in eine Zahl umzuwandeln
             return int(text_part) if text_part.isdigit() else text_part.lower()
+
         # Teile den Text in Text- und Zahlenbestandteile auf
-        return [convert(c) for c in re.split(r'(\d+)', text)]
+        return [convert(c) for c in re.split(r"(\d+)", text)]
 
     def get_category_folders(self):
         # Definiere die Hauptkategorien und ihre zugehörigen Ordner
@@ -77,54 +89,48 @@ class SvgDock(QWidget):
                 "Schadenskonten": {
                     "gelb": "Schadenskonten/gelb",
                     "rot": "Schadenskonten/rot",
-                    "weiß": "Schadenskonten/weiß"
+                    "weiß": "Schadenskonten/weiß",
                 },
-                "Sonstiges": "Sonstiges"
+                "Sonstiges": "Sonstiges",
             },
             "THW": {
                 "Einheiten": "THW_Einheiten",
                 "Fahrzeuge": "THW_Fahrzeuge",
                 "Gebäude": "THW_Gebäude",
-                "Personen": "THW_Personen"
+                "Personen": "THW_Personen",
             },
             "Weitere Einheiten": {
                 "Bundeswehr": {
                     "Einheiten": "Bundeswehr_Einheiten",
                     "Fahrzeuge": "Bundeswehr_Fahrzeuge",
-                    "Personen": "Bundeswehr_Personen"
+                    "Personen": "Bundeswehr_Personen",
                 },
                 "Feuerwehr": {
                     "Einheiten": "Feuerwehr_Einheiten",
                     "Fahrzeuge": "Feuerwehr_Fahrzeuge",
                     "Gebäude": "Feuerwehr_Gebäude",
-                    "Personen": "Feuerwehr_Personen"
+                    "Personen": "Feuerwehr_Personen",
                 },
                 "Rettungswesen": {
                     "Einheiten": "Rettungswesen_Einheiten",
                     "Einrichtungen": "Rettungswesen_Einrichtungen",
                     "Fahrzeuge": "Rettungswesen_Fahrzeuge",
-                    "Personen": "Rettungswesen_Personen"
+                    "Personen": "Rettungswesen_Personen",
                 },
                 "Wasserrettung": {
                     "Einheiten": "Wasserrettung_Einheiten",
                     "Einrichtungen": "Wasserrettung_Einrichtungen",
                     "Fahrzeuge": "Wasserrettung_Fahrzeuge",
                     "Gebäude": "Wasserrettung_Gebäude",
-                    "Personen": "Wasserrettung_Personen"
+                    "Personen": "Wasserrettung_Personen",
                 },
-                "Polizei": {
-                    "Einheiten": "Polizei_Einheiten",
-                    "Fahrzeuge": "Polizei_Fahrzeuge"
-                },
-                "Zoll": {
-                    "Einheiten": "Zoll_Einheiten",
-                    "Fahrzeuge": "Zoll_Fahrzeuge"
-                },
+                "Polizei": {"Einheiten": "Polizei_Einheiten", "Fahrzeuge": "Polizei_Fahrzeuge"},
+                "Zoll": {"Einheiten": "Zoll_Einheiten", "Fahrzeuge": "Zoll_Fahrzeuge"},
                 "Katastrophenschutz": {
                     "Einheiten": "Katastrophenschutz_Einheiten",
-                    "Fahrzeuge": "Katastrophenschutz_Fahrzeuge"
-                }
-            }
+                    "Fahrzeuge": "Katastrophenschutz_Fahrzeuge",
+                },
+            },
         }
         return categories
 
@@ -132,23 +138,23 @@ class SvgDock(QWidget):
         # Lösche zuerst alle vorhandenen Einträge
         self.treeWidget.clear()
         self.treeWidget.setSortingEnabled(False)  # Deaktiviere Sortierung während des Aufbaus
-        
+
         svg_path = os.path.join(self.plugin_dir, "svgs")
         logging.info(f"Plugin-Verzeichnis: {self.plugin_dir}")
         logging.info(f"SVG-Pfad: {svg_path}")
-        
+
         if not os.path.exists(svg_path):
             logging.error(f"SVG-Pfad existiert nicht: {svg_path}")
             return
 
         categories = self.get_category_folders()
-        
+
         # Erstelle die Hauptkategorien
         for category, subcategories in categories.items():
             category_item = QTreeWidgetItem(self.treeWidget)
             category_item.setText(0, category)
             category_item.setIcon(0, QIcon.fromTheme("folder"))
-            
+
             # Füge Unterkategorien hinzu
             if isinstance(subcategories, dict):
                 # Sortiere die Unterkategorien für konsistente Reihenfolge mit natürlicher Sortierung
@@ -157,7 +163,7 @@ class SvgDock(QWidget):
                     subcategory_item = QTreeWidgetItem(category_item)
                     subcategory_item.setText(0, subcategory)
                     subcategory_item.setIcon(0, QIcon.fromTheme("folder"))
-                    
+
                     if isinstance(folder_name, dict):  # Für verschachtelte Kategorien
                         # Setze den Basis-Ordner-Namen als UserRole (z.B. "Schadenskonten")
                         # Extrahiere den Basis-Ordner-Namen aus dem ersten Unterordner-Pfad
@@ -175,7 +181,7 @@ class SvgDock(QWidget):
                         subcategory_item.setData(0, Qt.UserRole, folder_name)
                         placeholder = QTreeWidgetItem(subcategory_item)
                         placeholder.setText(0, "Laden...")
-            
+
             # Öffne die Ordner "Allgemein" und "THW" automatisch
             if category in ["Allgemein", "THW"]:
                 self.treeWidget.expandItem(category_item)
@@ -197,8 +203,9 @@ class SvgDock(QWidget):
                             folder_path = os.path.join(self.plugin_dir, "svgs", folder_name)
                             if os.path.exists(folder_path):
                                 # Prüfe, ob es Unterordner gibt
-                                subdirs = [d for d in os.listdir(folder_path) 
-                                          if os.path.isdir(os.path.join(folder_path, d))]
+                                subdirs = [
+                                    d for d in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, d))
+                                ]
                                 if subdirs:
                                     # Dieser Ordner hat Unterordner, lade sie
                                     self.populate_subfolders(child, folder_path, subdirs)
@@ -211,14 +218,14 @@ class SvgDock(QWidget):
                                 else:
                                     # Normale SVG-Dateien laden
                                     self.populate_svg_files(child)
-        
+
         # Sortierung bleibt deaktiviert, da wir natürliche Sortierung verwenden
 
     def on_item_expanded(self, item):
         # Entferne den Platzhalter
         if item.childCount() == 1 and item.child(0).text(0) == "Laden...":
             item.removeChild(item.child(0))
-            
+
         # Prüfe, ob es sich um eine Hauptkategorie oder einen Unterordner handelt
         if item.parent() is None:  # Hauptkategorie
             if item.text(0) == "Weitere Einheiten":
@@ -249,7 +256,7 @@ class SvgDock(QWidget):
                         placeholder = QTreeWidgetItem(subsubcategory_item)
                         placeholder.setText(0, "Laden...")
                 return
-            
+
             # Prüfe, ob dieser Unterordner selbst verschachtelte Unterordner hat
             folder_name = item.data(0, Qt.UserRole)
             if folder_name:
@@ -257,8 +264,7 @@ class SvgDock(QWidget):
                 # Prüfe, ob der Ordner existiert und Unterordner hat
                 if os.path.exists(folder_path):
                     # Prüfe, ob es Unterordner gibt (nicht nur SVG-Dateien)
-                    subdirs = [d for d in os.listdir(folder_path) 
-                              if os.path.isdir(os.path.join(folder_path, d))]
+                    subdirs = [d for d in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, d))]
                     if subdirs:
                         # Dieser Ordner hat Unterordner, lade sie
                         self.populate_subfolders(item, folder_path, subdirs)
@@ -270,12 +276,12 @@ class SvgDock(QWidget):
         # Entferne alle vorhandenen Kinder
         while category_item.childCount() > 0:
             category_item.removeChild(category_item.child(0))
-            
+
         categories = self.get_category_folders()["Weitere Einheiten"]
-        
+
         # Sortiere die Unterkategorien mit natürlicher Sortierung
         sorted_categories = sorted(categories.items(), key=lambda x: self.natural_sort_key(x[0]))
-        
+
         for subcategory, subfolders in sorted_categories:
             subcategory_item = QTreeWidgetItem(category_item)
             subcategory_item.setText(0, subcategory)
@@ -290,23 +296,23 @@ class SvgDock(QWidget):
         # Entferne alle vorhandenen Kinder
         while category_item.childCount() > 0:
             category_item.removeChild(category_item.child(0))
-            
+
         category_name = category_item.text(0)
         categories = self.get_category_folders()
-        
+
         if category_name in categories:
             svg_path = os.path.join(self.plugin_dir, "svgs")
             subfolders = categories[category_name]
-            
+
             # Sortiere die Unterordner-Namen mit natürlicher Sortierung
             if isinstance(subfolders, dict):
                 sorted_subfolders = sorted(subfolders.keys(), key=self.natural_sort_key)
             else:
                 sorted_subfolders = sorted(subfolders, key=self.natural_sort_key)
-            
+
             for subfolder in sorted_subfolders:
                 folder_name = subfolders[subfolder] if isinstance(subfolders, dict) else subfolder
-                
+
                 # Prüfe, ob folder_name ein Dictionary ist (verschachtelte Struktur)
                 if isinstance(folder_name, dict):
                     # Erstelle einen Unterordner-Eintrag für die verschachtelte Struktur
@@ -332,7 +338,7 @@ class SvgDock(QWidget):
                         # Erstelle einen Unterordner-Eintrag
                         subfolder_item = QTreeWidgetItem(category_item)
                         # Entferne den Präfix (z.B. "Bundeswehr_") aus dem Namen
-                        display_name = folder_name.split('_', 1)[1] if '_' in folder_name else folder_name
+                        display_name = folder_name.split("_", 1)[1] if "_" in folder_name else folder_name
                         subfolder_item.setText(0, display_name)
                         subfolder_item.setIcon(0, QIcon.fromTheme("folder"))
                         subfolder_item.setData(0, Qt.UserRole, folder_name)
@@ -345,13 +351,13 @@ class SvgDock(QWidget):
         # Entferne alle vorhandenen Kinder
         while parent_item.childCount() > 0:
             parent_item.removeChild(parent_item.child(0))
-        
+
         # Sortiere die Unterordner mit natürlicher Sortierung
         subdirs.sort(key=self.natural_sort_key)
-        
+
         # Hole den Basis-Ordner-Namen aus dem UserRole des Parent-Items
         base_folder_name = parent_item.data(0, Qt.UserRole)
-        
+
         for subdir in subdirs:
             subfolder_item = QTreeWidgetItem(parent_item)
             subfolder_item.setText(0, subdir)
@@ -367,14 +373,14 @@ class SvgDock(QWidget):
         # Entferne alle vorhandenen Kinder
         while subfolder_item.childCount() > 0:
             subfolder_item.removeChild(subfolder_item.child(0))
-            
+
         folder_name = subfolder_item.data(0, Qt.UserRole)
         if not folder_name:
             return
-            
+
         folder_path = os.path.join(self.plugin_dir, "svgs", folder_name)
         logging.info(f"Suche Symbole in: {folder_path}")
-        
+
         try:
             if os.path.exists(folder_path):
                 logging.info(f"Ordner existiert: {folder_path}")
@@ -382,7 +388,7 @@ class SvgDock(QWidget):
                 logging.info(f"Gefundene SVG-Dateien: {files}")
                 # Verwende natürliche Sortierung für Dateien
                 files.sort(key=self.natural_sort_key)
-                
+
                 # Erstelle alle Items in der bereits sortierten Reihenfolge
                 # Da die Sortierung im TreeWidget deaktiviert ist, bleibt die Reihenfolge erhalten
                 for file in files:

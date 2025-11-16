@@ -16,32 +16,32 @@ Beispiele:
     python export_script.py /home/user/Desktop/Export
 """
 
-import os
-import sys
-import shutil
-import zipfile
 import argparse
+import os
+import shutil
+import sys
+import zipfile
 from pathlib import Path
 
 
 class THWPluginExporter:
     """Klasse zum Exportieren des THW Toolbox Plugins."""
-    
+
     def __init__(self, plugin_dir=None):
         """
         Initialisiert den Exporter.
-        
+
         Args:
-            plugin_dir (str, optional): Pfad zum Plugin-Verzeichnis. 
+            plugin_dir (str, optional): Pfad zum Plugin-Verzeichnis.
                                       Wenn None, wird das aktuelle Verzeichnis verwendet.
         """
         if plugin_dir is None:
             plugin_dir = os.path.dirname(os.path.abspath(__file__))
-        
+
         self.plugin_dir = Path(plugin_dir)
         self.required_files = [
             "thwtoolboxplugin.py",
-            "thwtoolboxplugin_dock.py", 
+            "thwtoolboxplugin_dock.py",
             "identifytool.py",
             "dock_manager.py",
             "dragmaptool.py",
@@ -49,54 +49,51 @@ class THWPluginExporter:
             "mapcanvas_dropevent_filter.py",
             "__init__.py",
             "metadata.txt",
-            "LICENSE"
+            "LICENSE",
         ]
-        
-        self.required_dirs = [
-            "svgs",
-            "icons"
-        ]
-    
+
+        self.required_dirs = ["svgs", "icons"]
+
     def validate_plugin_structure(self):
         """
         Validiert, ob alle erforderlichen Dateien und Verzeichnisse vorhanden sind.
-        
+
         Returns:
             tuple: (is_valid, missing_files, missing_dirs)
         """
         missing_files = []
         missing_dirs = []
-        
+
         # Prüfe erforderliche Dateien
         for file_name in self.required_files:
             file_path = self.plugin_dir / file_name
             if not file_path.exists():
                 missing_files.append(file_name)
-        
+
         # Prüfe erforderliche Verzeichnisse
         for dir_name in self.required_dirs:
             dir_path = self.plugin_dir / dir_name
             if not dir_path.exists():
                 missing_dirs.append(dir_name)
-        
+
         is_valid = len(missing_files) == 0 and len(missing_dirs) == 0
-        
+
         return is_valid, missing_files, missing_dirs
-    
+
     def export_portable_package(self, export_path, include_gpkg=True):
         """
         Exportiert das Plugin als portables Paket.
-        
+
         Args:
             export_path (str): Pfad, wo das portable Paket gespeichert werden soll
             include_gpkg (bool): Ob GeoPackage-Dateien mit exportiert werden sollen
-            
+
         Returns:
             bool: True wenn erfolgreich, False bei Fehlern
         """
         try:
             export_path = Path(export_path)
-            
+
             # Validiere Plugin-Struktur
             is_valid, missing_files, missing_dirs = self.validate_plugin_structure()
             if not is_valid:
@@ -106,17 +103,17 @@ class THWPluginExporter:
                 if missing_dirs:
                     print(f"   Fehlende Verzeichnisse: {', '.join(missing_dirs)}")
                 return False
-            
+
             print(f"[EXPORT] Exportiere Plugin von: {self.plugin_dir}")
             print(f"[EXPORT] Zielverzeichnis: {export_path}")
-            
+
             # Erstelle Plugin-Ordner im Export-Verzeichnis
             plugin_folder_name = "qgisthwplugin"
             plugin_export_path = export_path / plugin_folder_name
             plugin_export_path.mkdir(parents=True, exist_ok=True)
-            
+
             print(f"Erstelle Plugin-Ordner: {plugin_folder_name}")
-            
+
             # Kopiere Python-Dateien
             print("Kopiere Python-Dateien...")
             for py_file in self.required_files:
@@ -126,7 +123,7 @@ class THWPluginExporter:
                     print(f"   [OK] {py_file}")
                 else:
                     print(f"   [WARN] {py_file} nicht gefunden")
-            
+
             # Kopiere SVG-Verzeichnis
             svg_source = self.plugin_dir / "svgs"
             svg_dest = plugin_export_path / "svgs"
@@ -137,7 +134,7 @@ class THWPluginExporter:
                 print(f"   [OK] {svg_count} SVG-Dateien kopiert")
             else:
                 print("   [WARN] SVG-Verzeichnis nicht gefunden")
-            
+
             # Kopiere Icons-Verzeichnis
             icon_source = self.plugin_dir / "icons"
             icon_dest = plugin_export_path / "icons"
@@ -148,7 +145,7 @@ class THWPluginExporter:
                 print(f"   [OK] {icon_count} Icon-Dateien kopiert")
             else:
                 print("   [WARN] Icons-Verzeichnis nicht gefunden")
-            
+
             # Kopiere GeoPackage-Dateien (optional)
             if include_gpkg:
                 print("Suche nach GeoPackage-Dateien...")
@@ -160,19 +157,19 @@ class THWPluginExporter:
                         print(f"   [OK] {gpkg_file.name} kopiert")
                 else:
                     print("   [INFO] Keine GeoPackage-Dateien gefunden")
-            
+
             # Erstelle README-Datei im Hauptverzeichnis
             print("Erstelle README-Datei...")
             readme_content = self._create_readme_content()
             readme_path = export_path / "README.txt"
-            with open(readme_path, 'w', encoding='utf-8') as f:
+            with open(readme_path, "w", encoding="utf-8") as f:
                 f.write(readme_content)
             print("   [OK] README.txt erstellt")
-            
+
             # Erstelle ZIP-Archiv mit korrekter Plugin-Struktur
             print("Erstelle ZIP-Archiv...")
-            zip_path = export_path.with_suffix('.zip')
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            zip_path = export_path.with_suffix(".zip")
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
                 # Füge Plugin-Ordner-Inhalte mit Plugin-Ordnernamen ins ZIP hinzu
                 for root, dirs, files in os.walk(plugin_export_path):
                     for file in files:
@@ -181,20 +178,20 @@ class THWPluginExporter:
                         relative_path = file_path.relative_to(plugin_export_path)
                         arcname = f"{plugin_folder_name}/{relative_path}"
                         zipf.write(file_path, arcname)
-            
+
             zip_size = zip_path.stat().st_size / (1024 * 1024)  # MB
             print(f"   [OK] ZIP-Archiv erstellt: {zip_path.name} ({zip_size:.1f} MB)")
-            
+
             print("\n[SUCCESS] Export erfolgreich abgeschlossen!")
             print(f"[EXPORT] Portables Paket: {zip_path}")
             print(f"[EXPORT] Entpacktes Verzeichnis: {export_path}")
-            
+
             return True
-            
+
         except Exception as e:
             print(f"\n[ERROR] Fehler beim Export: {str(e)}")
             return False
-    
+
     def _create_readme_content(self):
         """Erstellt den Inhalt der README-Datei."""
         return """THW Toolbox Plugin - Portables Paket
@@ -261,51 +258,41 @@ Beispiele:
   python export_script.py "C:\\Users\\Benutzer\\Desktop\\Export"
   python export_script.py /home/user/Desktop/Export
   python export_script.py --no-gpkg /tmp/thw_export
-        """
+        """,
     )
-    
+
     parser.add_argument(
-        'export_path',
-        nargs='?',
+        "export_path",
+        nargs="?",
         default=None,
-        help='Zielverzeichnis für den Export (Standard: Desktop/THW_Toolbox_Portable)'
+        help="Zielverzeichnis für den Export (Standard: Desktop/THW_Toolbox_Portable)",
     )
-    
-    parser.add_argument(
-        '--no-gpkg',
-        action='store_true',
-        help='GeoPackage-Dateien nicht mit exportieren'
-    )
-    
-    parser.add_argument(
-        '--plugin-dir',
-        help='Pfad zum Plugin-Verzeichnis (Standard: aktuelles Verzeichnis)'
-    )
-    
+
+    parser.add_argument("--no-gpkg", action="store_true", help="GeoPackage-Dateien nicht mit exportieren")
+
+    parser.add_argument("--plugin-dir", help="Pfad zum Plugin-Verzeichnis (Standard: aktuelles Verzeichnis)")
+
     args = parser.parse_args()
-    
+
     # Bestimme Export-Pfad
     if args.export_path is None:
         desktop = Path.home() / "Desktop"
         export_path = desktop / "THW_Toolbox_Portable"
     else:
         export_path = Path(args.export_path)
-    
+
     # Bestimme Plugin-Verzeichnis
     plugin_dir = args.plugin_dir if args.plugin_dir else None
-    
+
     print("THW Toolbox Plugin Export Script")
     print("=" * 50)
-    
+
     # Erstelle Exporter
     exporter = THWPluginExporter(plugin_dir)
-    
+
     # Führe Export durch
-    success = exporter.export_portable_package(
-        export_path, 
-        include_gpkg=not args.no_gpkg
-    )
-    
+    success = exporter.export_portable_package(export_path, include_gpkg=not args.no_gpkg)
+
     if success:
         print(f"\n[SUCCESS] Export erfolgreich abgeschlossen!")
         print(f"[EXPORT] ZIP-Datei: {export_path.with_suffix('.zip')}")

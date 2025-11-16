@@ -613,6 +613,17 @@ class THWToolboxPlugin:
                 )
                 return
             
+            # Stelle sicher, dass alle Edit-Sessions geschlossen sind
+            if old_layer.isEditable():
+                try:
+                    old_layer.commitChanges()
+                except:
+                    try:
+                        old_layer.rollBack()
+                    except:
+                        pass
+            
+            # Features kopieren, BEVOR der Layer entfernt wird
             crs = self.canvas.mapSettings().destinationCrs().authid()
             mem = QgsVectorLayer(f"Point?crs={crs}", "temp", "memory")
             dp = mem.dataProvider()
@@ -657,14 +668,30 @@ class THWToolboxPlugin:
                 new_feat.setAttribute("rotation", feat.attribute("rotation") if "rotation" in existing_fields else 0.0)
                 mem.dataProvider().addFeature(new_feat)
             
+            # Alten Layer AUS DEM PROJEKT entfernen, BEVOR die Datei geschrieben wird
+            # Dies gibt die Datei frei, damit sie überschrieben werden kann
+            old_layer_id = old_layer.id()
+            QgsProject.instance().removeMapLayer(old_layer_id)
+            
+            # Kurze Wartezeit, damit QGIS die Datei vollständig freigibt
+            import time
+            time.sleep(0.1)
+            
             # Temporäre Datei verwenden, um Konflikte zu vermeiden
             temp_gpkg = gpkg + ".temp"
+            
+            # Lösche temporäre Datei falls sie existiert
+            if os.path.exists(temp_gpkg):
+                try:
+                    os.remove(temp_gpkg)
+                except:
+                    pass
             
             # Speichere zuerst in temporäre Datei
             opts = QgsVectorFileWriter.SaveVectorOptions()
             opts.driverName = "GPKG"
             opts.layerName = lname
-            opts.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteLayer
+            opts.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
             
             result = QgsVectorFileWriter.writeAsVectorFormatV2(mem, temp_gpkg, QgsProject.instance().transformContext(), opts)
             
@@ -676,26 +703,44 @@ class THWToolboxPlugin:
                 )
                 return
             
-            # Alten Layer entfernen
-            old_layer_id = old_layer.id()
-            QgsProject.instance().removeMapLayer(old_layer_id)
+            # Warte kurz, damit die temporäre Datei vollständig geschrieben ist
+            time.sleep(0.1)
             
             # Temporäre Datei über die ursprüngliche Datei kopieren
             import shutil
             try:
+                # Versuche zuerst, die ursprüngliche Datei zu löschen
+                if os.path.exists(gpkg):
+                    try:
+                        os.remove(gpkg)
+                        time.sleep(0.1)  # Kurze Wartezeit nach dem Löschen
+                    except Exception as e:
+                        print(f"Warnung: Konnte ursprüngliche Datei nicht löschen: {e}")
+                
+                # Verschiebe die temporäre Datei
                 shutil.move(temp_gpkg, gpkg)
             except Exception as e:
                 # Falls das Verschieben fehlschlägt, versuche zu kopieren und dann zu löschen
-                shutil.copy2(temp_gpkg, gpkg)
                 try:
-                    os.remove(temp_gpkg)
-                except:
-                    pass
+                    shutil.copy2(temp_gpkg, gpkg)
+                    try:
+                        os.remove(temp_gpkg)
+                    except:
+                        pass
+                except Exception as e2:
+                    self._show_error_alert(
+                        "Layer-Aktualisierungsfehler",
+                        f"Konnte aktualisierte Datei nicht speichern: {e2}",
+                        f"Pfad: {gpkg}\nFehler: {e2}"
+                    )
+                    return
                 print(f"Warnung: Temporäre Datei konnte nicht verschoben werden: {e}")
             
         except Exception as e:
             error_msg = f"Fehler beim Aktualisieren der Layer-Felder: {str(e)}"
             print(error_msg)
+            import traceback
+            traceback.print_exc()
             self._show_error_alert(
                 "Layer-Aktualisierungsfehler",
                 "Konnte Layer-Felder nicht aktualisieren",
@@ -1363,7 +1408,7 @@ class THWToolboxPlugin:
                 adaptive_size = max(adaptive_size, min_existing_size)
         
         # Begrenze die Größe auf einen vernünftigen Bereich
-        adaptive_size = max(10.0, min(200.0, adaptive_size))
+        adaptive_size = max(10.0, min(500.0, adaptive_size))
         
         # Standard-Label aus SVG-Namen erstellen
         svg_name = os.path.basename(svg_path)

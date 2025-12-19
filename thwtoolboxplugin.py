@@ -643,7 +643,7 @@ class THWToolboxPlugin:
                     "3. Versuchen Sie es erneut",
                 )
                 return
-            
+
             # Stelle sicher, dass alle Edit-Sessions geschlossen sind
             if old_layer.isEditable():
                 try:
@@ -653,7 +653,7 @@ class THWToolboxPlugin:
                         old_layer.rollBack()
                     except:
                         pass
-            
+
             # Features kopieren, BEVOR der Layer entfernt wird
             crs = self.canvas.mapSettings().destinationCrs().authid()
             mem = QgsVectorLayer(f"Point?crs={crs}", "temp", "memory")
@@ -709,26 +709,27 @@ class THWToolboxPlugin:
                 )
                 new_feat.setAttribute("rotation", feat.attribute("rotation") if "rotation" in existing_fields else 0.0)
                 mem.dataProvider().addFeature(new_feat)
-            
+
             # Alten Layer AUS DEM PROJEKT entfernen, BEVOR die Datei geschrieben wird
             # Dies gibt die Datei frei, damit sie überschrieben werden kann
             old_layer_id = old_layer.id()
             QgsProject.instance().removeMapLayer(old_layer_id)
-            
+
             # Kurze Wartezeit, damit QGIS die Datei vollständig freigibt
             import time
+
             time.sleep(0.1)
-            
+
             # Temporäre Datei verwenden, um Konflikte zu vermeiden
             temp_gpkg = gpkg + ".temp"
-            
+
             # Lösche temporäre Datei falls sie existiert
             if os.path.exists(temp_gpkg):
                 try:
                     os.remove(temp_gpkg)
                 except:
                     pass
-            
+
             # Speichere zuerst in temporäre Datei
             opts = QgsVectorFileWriter.SaveVectorOptions()
             opts.driverName = "GPKG"
@@ -745,10 +746,10 @@ class THWToolboxPlugin:
                     f"Pfad: {gpkg}\nFehler: {result[1]}",
                 )
                 return
-            
+
             # Warte kurz, damit die temporäre Datei vollständig geschrieben ist
             time.sleep(0.1)
-            
+
             # Temporäre Datei über die ursprüngliche Datei kopieren
             import shutil
 
@@ -760,7 +761,7 @@ class THWToolboxPlugin:
                         time.sleep(0.1)  # Kurze Wartezeit nach dem Löschen
                     except Exception as e:
                         print(f"Warnung: Konnte ursprüngliche Datei nicht löschen: {e}")
-                
+
                 # Verschiebe die temporäre Datei
                 shutil.move(temp_gpkg, gpkg)
             except Exception as e:
@@ -775,7 +776,7 @@ class THWToolboxPlugin:
                     self._show_error_alert(
                         "Layer-Aktualisierungsfehler",
                         f"Konnte aktualisierte Datei nicht speichern: {e2}",
-                        f"Pfad: {gpkg}\nFehler: {e2}"
+                        f"Pfad: {gpkg}\nFehler: {e2}",
                     )
                     return
                 print(f"Warnung: Temporäre Datei konnte nicht verschoben werden: {e}")
@@ -784,6 +785,7 @@ class THWToolboxPlugin:
             error_msg = f"Fehler beim Aktualisieren der Layer-Felder: {str(e)}"
             print(error_msg)
             import traceback
+
             traceback.print_exc()
             self._show_error_alert(
                 "Layer-Aktualisierungsfehler",

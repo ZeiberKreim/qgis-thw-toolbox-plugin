@@ -1,5 +1,6 @@
-from PyQt5.QtCore import QObject, QEvent
+from PyQt5.QtCore import QEvent, QObject
 from qgis.core import QgsPointXY
+
 
 class CanvasDropFilter(QObject):
     def __init__(self, canvas, place_feature_callback):
@@ -16,12 +17,13 @@ class CanvasDropFilter(QObject):
         if event.type() == QEvent.Drop:
             print(f"DEBUG: Drop-Event empfangen: {event.mimeData().text()}")
             svg_path = event.mimeData().text()
-            
+
             # Prüfe, ob eine Karte vorhanden ist, bevor Koordinaten transformiert werden
             try:
                 crs = self.canvas.mapSettings().destinationCrs()
                 if not crs.isValid():
                     from PyQt5.QtWidgets import QMessageBox
+
                     msg_box = QMessageBox()
                     msg_box.setIcon(QMessageBox.Critical)
                     msg_box.setWindowTitle("Keine Karte vorhanden")
@@ -38,6 +40,7 @@ class CanvasDropFilter(QObject):
                     return True
             except Exception as e:
                 from PyQt5.QtWidgets import QMessageBox
+
                 msg_box = QMessageBox()
                 msg_box.setIcon(QMessageBox.Critical)
                 msg_box.setWindowTitle("Fehler beim Zugriff auf die Karte")
@@ -46,7 +49,7 @@ class CanvasDropFilter(QObject):
                 msg_box.exec_()
                 event.ignore()
                 return True
-            
+
             pt = self.canvas.getCoordinateTransform().toMapCoordinates(event.pos().x(), event.pos().y())
             print(f"DEBUG: Koordinaten: {pt}")
             print(f"DEBUG: Rufe place_feature auf: {self.place_feature}")

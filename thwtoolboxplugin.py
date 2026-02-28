@@ -7,8 +7,11 @@ from PyQt5.QtGui import QColor, QDrag, QIcon, QPixmap
 from PyQt5.QtWidgets import (
     QAction,
     QCheckBox,
+    QComboBox,
     QDialog,
+    QDialogButtonBox,
     QDockWidget,
+    QFormLayout,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -17,6 +20,7 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSlider,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -305,6 +309,13 @@ class MoveTool(QgsMapTool):
 
 
 class THWToolboxPlugin:
+
+    # Default values for settings
+    SCALING_ICON_WITH_MAP_DEFAULT = False
+    ICON_FIXED_SIZE_DEFAULT = False
+    DEFAULT_ICON_SIZE_DEFAULT = 50
+    DEFAULT_LABEL_CRS_DEFAULT = "MGRS"
+
     def __init__(self, iface):
         self.iface = iface
         self.canvas = iface.mapCanvas()
@@ -316,6 +327,13 @@ class THWToolboxPlugin:
         self.move_tool = None
         self.action = None
         self.dock = None
+
+        self.settings = {
+            "scaling_icon_with_map": self.SCALING_ICON_WITH_MAP_DEFAULT,
+            "icon_fixed_size": self.ICON_FIXED_SIZE_DEFAULT,
+            "default_icon_size": self.DEFAULT_ICON_SIZE_DEFAULT,
+            "default_label_crs": self.DEFAULT_LABEL_CRS_DEFAULT,
+        }
 
     def _check_map_available(self):
         """Prüft, ob eine Karte vorhanden ist (CRS gesetzt und Layer im Projekt)."""
@@ -453,6 +471,9 @@ class THWToolboxPlugin:
             self.move_tool = MoveTool(self.canvas, self)
         self.canvas.setMapTool(self.move_tool)
 
+        # Load the configuration settings
+        self._load_settings()
+
         # Plugin-Symbol als aktiv markieren
         if self.action:
             self.action.setChecked(True)
@@ -568,7 +589,7 @@ class THWToolboxPlugin:
             return
         self.dock = QDockWidget("Taktische Zeichen", self.iface.mainWindow())
         self.dock.setAllowedAreas(Qt.RightDockWidgetArea)
-        self.svg_dock_widget = SvgDock(self.plugin_dir, self._on_svg_drag_start)
+        self.svg_dock_widget = SvgDock(self.plugin_dir, self._on_svg_drag_start, self._open_config_dialog)
         self.dock.setWidget(self.svg_dock_widget)
         self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dock)
 
@@ -1110,6 +1131,9 @@ class THWToolboxPlugin:
             print("DEBUG: Kein Projektpfad verfügbar")
             return
 
+        # Save the settings
+        self._save_settings()
+
         # Aktuelle Datei-Pfad ermitteln
         current_source = self.layer.source().split("|")[0]
         print(f"DEBUG: Aktuelle Layer-Datei: {current_source}")
@@ -1445,29 +1469,32 @@ class THWToolboxPlugin:
         else:
             relative_path = svg_path
 
-        # Intelligente Größenberechnung basierend auf dem aktuellen Zoom-Faktor
-        map_units_per_pixel = self.canvas.mapUnitsPerPixel()
-        # Berechne eine geeignete Größe basierend auf dem Zoom-Faktor
-        # Bei kleineren map_units_per_pixel (starker Zoom) = größere Symbole
-        # Bei größeren map_units_per_pixel (schwacher Zoom) = kleinere Symbole
-        base_size = 30.0  # Basis-Größe
-        zoom_factor = 1.0 / max(map_units_per_pixel, 0.001)  # Vermeide Division durch Null
-        adaptive_size = base_size * zoom_factor
+        if self.settings.get("icon_fixed_size", self.ICON_FIXED_SIZE_DEFAULT):
+            icon_size = self.settings.get("default_icon_size", self.DEFAULT_ICON_SIZE_DEFAULT)
+        else:
+            # Intelligente Größenberechnung basierend auf dem aktuellen Zoom-Faktor
+            map_units_per_pixel = self.canvas.mapUnitsPerPixel()
+            # Berechne eine geeignete Größe basierend auf dem Zoom-Faktor
+            # Bei kleineren map_units_per_pixel (starker Zoom) = größere Symbole
+            # Bei größeren map_units_per_pixel (schwacher Zoom) = kleinere Symbole
+            base_size = 30.0  # Basis-Größe
+            zoom_factor = 1.0 / max(map_units_per_pixel, 0.001)  # Vermeide Division durch Null
+            icon_size = base_size * zoom_factor
 
-        # Prüfe, ob bereits Symbole vorhanden sind und verwende mindestens die Größe des kleinsten Symbols
-        if self.layer.featureCount() > 0:
-            min_existing_size = float("inf")
-            for feature in self.layer.getFeatures():
-                feature_size = feature.attribute("size")
-                if feature_size and feature_size > 0:
-                    min_existing_size = min(min_existing_size, feature_size)
+            # Prüfe, ob bereits Symbole vorhanden sind und verwende mindestens die Größe des kleinsten Symbols
+            if self.layer.featureCount() > 0:
+                min_existing_size = float("inf")
+                for feature in self.layer.getFeatures():
+                    feature_size = feature.attribute("size")
+                    if feature_size and feature_size > 0:
+                        min_existing_size = min(min_existing_size, feature_size)
 
-            # Wenn ein kleinstes Symbol gefunden wurde, verwende mindestens dessen Größe
-            if min_existing_size != float("inf"):
-                adaptive_size = max(adaptive_size, min_existing_size)
+                # Wenn ein kleinstes Symbol gefunden wurde, verwende mindestens dessen Größe
+                if min_existing_size != float("inf"):
+                    icon_size = max(icon_size, min_existing_size)
 
-        # Begrenze die Größe auf einen vernünftigen Bereich
-        adaptive_size = max(10.0, min(500.0, adaptive_size))
+            # Begrenze die Größe auf einen vernünftigen Bereich
+            icon_size = max(10.0, min(500.0, icon_size))
         # Standard-Label aus SVG-Namen erstellen
         svg_name = os.path.basename(svg_path)
         # Entferne .svg Endung und ersetze Unterstriche durch Leerzeichen
@@ -1479,8 +1506,8 @@ class THWToolboxPlugin:
         f.setAttribute("name", os.path.basename(svg_path))
         f.setAttribute("svg_path", relative_path)  # Relativer Pfad
         f.setAttribute("svg_content", svg_content)  # SVG-Inhalt speichern
-        f.setAttribute("size", adaptive_size)  # Adaptive Größe basierend auf Zoom-Faktor
-        f.setAttribute("scale_with_map", False)  # Standardmäßig nicht mit Karte skalieren
+        f.setAttribute("size", icon_size)  # Adaptive Größe basierend auf Zoom-Faktor
+        f.setAttribute("scale_with_map", self.settings.get("scaling_icon_with_map", self.SCALING_ICON_WITH_MAP_DEFAULT))  # Standardmäßig nicht mit Karte skalieren
         f.setAttribute("unique_id", str(uuid.uuid4()))  # Eindeutige ID generieren
         f.setAttribute("label", default_label)  # Standard-Label aus SVG-Namen
         f.setAttribute("show_label", False)  # Label standardmäßig nicht anzeigen
@@ -1661,6 +1688,87 @@ class THWToolboxPlugin:
 
         # Layer-Referenzen in anderen Klassen aktualisieren
         self._update_tool_references()
+
+    def _load_settings(self):
+        proj = QgsProject.instance()
+
+        scaling_icon_with_map_loaded, scaling_icon_with_map_ok = proj.readBoolEntry("taktischezeichen", "scaling_icon_with_map", self.SCALING_ICON_WITH_MAP_DEFAULT)
+        icon_fixed_size_loaded, icon_fixed_size_ok = proj.readBoolEntry("taktischezeichen", "icon_fixed_size", self.ICON_FIXED_SIZE_DEFAULT)
+        default_icon_size_loaded, default_icon_size_ok = proj.readNumEntry("taktischezeichen", "default_icon_size", self.DEFAULT_ICON_SIZE_DEFAULT)
+        default_label_crs_loaded, default_label_crs_ok = proj.readEntry("taktischezeichen", "default_label_crs", self.DEFAULT_LABEL_CRS_DEFAULT)
+
+        print(f"DEBUG: Tried to load settings with result {scaling_icon_with_map_ok} and return {scaling_icon_with_map_loaded}")
+        self.settings["scaling_icon_with_map"] = scaling_icon_with_map_loaded if scaling_icon_with_map_ok else self.SCALING_ICON_WITH_MAP_DEFAULT
+        self.settings["icon_fixed_size"] = icon_fixed_size_loaded if icon_fixed_size_ok else self.ICON_FIXED_SIZE_DEFAULT
+        self.settings["default_icon_size"] = default_icon_size_loaded if default_icon_size_ok else self.DEFAULT_ICON_SIZE_DEFAULT
+        self.settings["default_label_crs"] = default_label_crs_loaded if default_label_crs_ok else self.DEFAULT_LABEL_CRS_DEFAULT
+
+    def _open_config_dialog(self):
+        dialog = QDialog(self.iface.mainWindow())
+        dialog.setWindowTitle("THW Toolbox Einstellungen")
+        layout = QVBoxLayout(dialog)
+
+        form = QFormLayout()
+
+        # Scaling with Map Setting
+        cb_scale = QCheckBox()
+        cb_scale.setChecked(self.settings.get("scaling_icon_with_map",self.SCALING_ICON_WITH_MAP_DEFAULT))
+        form.addRow("Neue Zeichen mit Karte skalieren", cb_scale)
+
+        # Automatic Fixed Size Setting
+        cb_fixed_size = QCheckBox()
+        cb_fixed_size.setChecked(self.settings.get("icon_fixed_size", self.ICON_FIXED_SIZE_DEFAULT))
+        form.addRow("Neue Zeichen mit fixer Standardgröße", cb_fixed_size)
+
+        # Default Size (only active if cb_fixed_size is enabled)
+        spin_icon_size =QSpinBox()
+        spin_icon_size.setMinimum(10)
+        spin_icon_size.setMaximum(200)
+        spin_icon_size.setValue(self.settings.get("default_icon_size",self.DEFAULT_ICON_SIZE_DEFAULT))
+        spin_icon_size.setSingleStep(1)  # Schrittweite
+        form.addRow("Fixe Standardgröße für neue Zeichen",spin_icon_size)
+        def update_spin_icon_size(checked):
+            spin_icon_size.setEnabled(checked)
+        cb_fixed_size.stateChanged.connect(update_spin_icon_size)
+        update_spin_icon_size(cb_fixed_size.isChecked())
+
+        # Coordinate System of Label
+        dropdown_crs = QComboBox()
+        dropdown_crs.addItems(["MGRS","UTM"])
+        current_index = dropdown_crs.findText(self.settings.get("default_label_crs",self.DEFAULT_LABEL_CRS_DEFAULT))
+        if current_index >= 0:
+            dropdown_crs.setCurrentIndex(current_index)
+        form.addRow("Koordinantesystem für Standortbeschriftung", dropdown_crs)
+
+        layout.addLayout(form)
+
+        # Bestätigen / Abbrechen
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        layout.addWidget(button_box)
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+
+        result = dialog.exec_()
+        if result is not QDialog.Rejected:
+            self.settings["scaling_icon_with_map"] = cb_scale.isChecked()
+            self.settings["icon_fixed_size"] = cb_fixed_size.isChecked()
+            self.settings["default_icon_size"] = spin_icon_size.value()
+            self.settings["default_label_crs"] = dropdown_crs.currentText()
+            self._save_settings()
+
+    def _save_settings(self):
+        proj = QgsProject.instance()
+
+        # Save the current settings
+        proj.writeEntryBool("taktischezeichen", "scaling_icon_with_map", bool(self.settings.get("scaling_icon_with_map", self.SCALING_ICON_WITH_MAP_DEFAULT)))
+        proj.writeEntryBool("taktischezeichen", "icon_fixed_size", bool(self.settings.get("icon_fixed_size", self.ICON_FIXED_SIZE_DEFAULT)))
+        proj.writeEntry("taktischezeichen", "default_icon_size", int(self.settings.get("default_icon_size", self.DEFAULT_ICON_SIZE_DEFAULT)))
+        proj.writeEntry("taktischezeichen", "default_label_crs", str(self.settings.get("default_label_crs", self.DEFAULT_LABEL_CRS_DEFAULT)))
+        proj.setDirty(True)
+        print("DEBUG: Config saved.")
+
 
     def resize_feature(self, fid, size):
         if not self.layer:

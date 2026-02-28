@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (
     QListWidgetItem,
     QTreeWidget,
     QTreeWidgetItem,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -24,7 +25,7 @@ logging.basicConfig(
 
 
 class SvgDock(QWidget):
-    def __init__(self, plugin_dir, select_callback):
+    def __init__(self, plugin_dir, select_callback, settings_callback):
         super().__init__()
         self.plugin_dir = plugin_dir
         self.select_callback = select_callback
@@ -56,6 +57,12 @@ class SvgDock(QWidget):
         self.populate_root_folders()
         self.treeWidget.itemPressed.connect(self.on_item_pressed)
         self.treeWidget.itemExpanded.connect(self.on_item_expanded)
+
+        # Button für die Einstellung hinzufügen
+        self.btn_config = QPushButton("Einstellungen")
+        self.btn_config.clicked.connect(settings_callback)
+        layout.addWidget(self.btn_config)
+
 
     def get_cached_icon(self, path):
         if path not in self.icon_cache:

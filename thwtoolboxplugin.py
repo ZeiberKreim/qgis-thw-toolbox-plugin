@@ -1656,7 +1656,7 @@ class THWToolboxPlugin:
         current_index = dropdown_crs.findText(self.settings.new_icon_crs)
         if current_index >= 0:
             dropdown_crs.setCurrentIndex(current_index)
-        default_icon_form.addRow("Koordinantesystem für Standortbeschriftung", dropdown_crs)
+        # default_icon_form.addRow("Koordinantesystem für Standortbeschriftung", dropdown_crs)
 
         default_icon_settings_box.setLayout(default_icon_form)
         layout.addWidget(default_icon_settings_box)
@@ -1676,7 +1676,7 @@ class THWToolboxPlugin:
         sb_label_font_size.setMaximum(100)
         sb_label_font_size.setSingleStep(1)
         sb_label_font_size.setValue(int(self.settings.label_font_size_mm * 10))
-        label_settings_form.addRow("Label Schriftgröße in mm", sb_label_font_size)
+        label_settings_form.addRow("Label Schriftgröße", sb_label_font_size)
 
         # Buffer Size
         sb_label_buffer_size = QSpinBox()
@@ -1684,7 +1684,7 @@ class THWToolboxPlugin:
         sb_label_buffer_size.setMaximum(50)
         sb_label_buffer_size.setSingleStep(1)
         sb_label_buffer_size.setValue(int(self.settings.label_buffer_size_mm * 10))
-        label_settings_form.addRow("Label Rahmendicke in mm", sb_label_buffer_size)
+        label_settings_form.addRow("Label Rahmendicke", sb_label_buffer_size)
 
         label_settings_box.setLayout(label_settings_form)
         layout.addWidget(label_settings_box)

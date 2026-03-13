@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import (
     QDialogButtonBox,
     QDockWidget,
     QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -55,6 +56,7 @@ from qgis.utils import iface
 
 from .identifytool import FeatureDock
 from .thwtoolboxplugin_dock import SvgDock
+from .thwtoolboxsettings import THWToolboxSettings
 
 
 class CanvasDropFilter(QObject):
@@ -310,12 +312,6 @@ class MoveTool(QgsMapTool):
 
 class THWToolboxPlugin:
 
-    # Default values for settings
-    SCALING_ICON_WITH_MAP_DEFAULT = False
-    ICON_FIXED_SIZE_DEFAULT = False
-    DEFAULT_ICON_SIZE_DEFAULT = 50
-    DEFAULT_LABEL_CRS_DEFAULT = "MGRS"
-
     def __init__(self, iface):
         self.iface = iface
         self.canvas = iface.mapCanvas()
@@ -328,12 +324,7 @@ class THWToolboxPlugin:
         self.action = None
         self.dock = None
 
-        self.settings = {
-            "scaling_icon_with_map": self.SCALING_ICON_WITH_MAP_DEFAULT,
-            "icon_fixed_size": self.ICON_FIXED_SIZE_DEFAULT,
-            "default_icon_size": self.DEFAULT_ICON_SIZE_DEFAULT,
-            "default_label_crs": self.DEFAULT_LABEL_CRS_DEFAULT,
-        }
+        self.settings = THWToolboxSettings()
 
     def _check_map_available(self):
         """Prüft, ob eine Karte vorhanden ist (CRS gesetzt und Layer im Projekt)."""
@@ -472,7 +463,7 @@ class THWToolboxPlugin:
         self.canvas.setMapTool(self.move_tool)
 
         # Load the configuration settings
-        self._load_settings()
+        self.settings.load_settings(QgsProject.instance())
 
         # Plugin-Symbol als aktiv markieren
         if self.action:
@@ -928,8 +919,8 @@ class THWToolboxPlugin:
 
             # Text-Format konfigurieren
             text_format = QgsTextFormat()
-            text_format.setSize(200)  # Schriftgröße (deutlich größer für bessere Lesbarkeit)
-            text_format.setSizeUnit(QgsUnitTypes.RenderPoints)  # Einheit: Punkte
+            text_format.setSize(self.settings.label_font_size_mm)  # Schriftgröße (deutlich größer für bessere Lesbarkeit)
+            text_format.setSizeUnit(Qgis.RenderUnit.Millimeters)  # Einheit: Punkte
             text_format.setColor(Qt.black)
             # Verwende fette Schrift für bessere Sichtbarkeit
             font = text_format.font()
@@ -939,8 +930,8 @@ class THWToolboxPlugin:
             # Buffer-Einstellungen für bessere Lesbarkeit
             buffer_settings = QgsTextBufferSettings()
             buffer_settings.setEnabled(True)
-            buffer_settings.setSize(20.0)  # Buffer-Größe (größer für bessere Lesbarkeit)
-            buffer_settings.setSizeUnit(QgsUnitTypes.RenderPoints)  # Einheit: Punkte
+            buffer_settings.setSize(self.settings.label_buffer_size_mm)  # Buffer-Größe (größer für bessere Lesbarkeit)
+            buffer_settings.setSizeUnit(Qgis.RenderUnit.Millimeters)  # Einheit: Punkte
             buffer_settings.setColor(Qt.white)
             text_format.setBuffer(buffer_settings)
 
@@ -959,29 +950,12 @@ class THWToolboxPlugin:
                 # In QGIS 3.x könnte Show ein Integer oder eine Enum sein
                 show_property = QgsProperty.fromExpression(expr)
 
-                # Versuche verschiedene Methoden, die Property zu setzen
-                try:
-                    # Methode 1: Direkt über dataDefinedProperties()
-                    # Show könnte Property 0 sein
-                    label_settings.dataDefinedProperties().setProperty(0, show_property)
-                    print(f"DEBUG: Label-Expression gesetzt (Property 0): {expr}")
-                except Exception as e1:
-                    print(f"DEBUG: Methode 1 fehlgeschlagen: {e1}")
-                    try:
-                        # Methode 2: Versuche mit Show als String
-                        if hasattr(QgsPalLayerSettings, "Show"):
-                            show_attr = getattr(QgsPalLayerSettings, "Show")
-                            label_settings.dataDefinedProperties().setProperty(show_attr, show_property)
-                            print(f"DEBUG: Label-Expression gesetzt (Show-Attribut): {expr}")
-                        else:
-                            raise Exception("Show-Attribut nicht gefunden")
-                    except Exception as e2:
-                        print(f"DEBUG: Methode 2 fehlgeschlagen: {e2}")
-                        # Methode 3: Verwende displayField als Expression mit Filter
-                        # Setze das Label-Feld als Expression, die die Bedingung prüft
-                        label_settings.isExpression = True
-                        label_settings.fieldName = 'CASE WHEN "show_label" = 1 AND "label" IS NOT NULL AND "label" <> \'\' THEN "label" ELSE \'\' END'
-                        print(f"DEBUG: Label-Expression als Feld-Expression gesetzt: {label_settings.fieldName}")
+                label_props = label_settings.dataDefinedProperties()
+                if self.settings.label_enable:
+                    label_props.setProperty(QgsPalLayerSettings.Property.Show, show_property)
+                else:
+                    label_props.setProperty(QgsPalLayerSettings.Property.Show, False)
+
             except Exception as e:
                 print(f"DEBUG: Fehler beim Setzen der Expression: {e}")
                 import traceback
@@ -998,86 +972,40 @@ class THWToolboxPlugin:
                     print("DEBUG: Labels werden ohne Filter angezeigt")
 
             # Label-Positionierung - unter dem Symbol
-            # Verwende Qgis.LabelPlacement Enum statt Integer
             try:
-                # Versuche verschiedene Enum-Werte für AroundPoint (um das Symbol herum)
-                if hasattr(Qgis, "LabelPlacement"):
-                    # QGIS 3.x: LabelPlacement ist in Qgis verschoben
-                    # AroundPoint erlaubt Positionierung um das Symbol herum
-                    if hasattr(Qgis.LabelPlacement, "AroundPoint"):
-                        label_settings.placement = Qgis.LabelPlacement.AroundPoint
-                    elif hasattr(Qgis.LabelPlacement, "OffsetPoint"):
-                        label_settings.placement = Qgis.LabelPlacement.OffsetPoint
-                    else:
-                        # Versuche mit Integer-Wert (0 = AroundPoint)
-                        label_settings.placement = 0
-                    print(f"DEBUG: Placement gesetzt: {label_settings.placement}")
-                elif hasattr(QgsPalLayerSettings, "AroundPoint"):
-                    # Fallback für ältere Versionen
-                    label_settings.placement = QgsPalLayerSettings.AroundPoint
-                    print(f"DEBUG: Placement gesetzt (QgsPalLayerSettings): {label_settings.placement}")
+                # 1) Place labels around the point (cartographic / ordered positions)
+                if hasattr(Qgis, "LabelPlacement") and hasattr(Qgis.LabelPlacement, "OverPoint"):
+                    label_settings.placement = Qgis.LabelPlacement.OverPoint
                 else:
-                    # Letzter Fallback: Versuche mit Integer (0 = AroundPoint)
-                    label_settings.placement = 0
-                    print(f"DEBUG: Placement gesetzt (Integer): {label_settings.placement}")
-            except Exception as e:
-                print(f"DEBUG: Fehler beim Setzen von placement: {e}")
-                import traceback
+                    # Fallback for older versions
+                    label_settings.placement = QgsPalLayerSettings.OverPoint
 
-                traceback.print_exc()
-                # Verwende Standard-Placement
-                try:
-                    if hasattr(Qgis, "LabelPlacement"):
-                        label_settings.placement = Qgis.LabelPlacement.AroundPoint
+                # 2) Tell QGIS to put the label in the bottom/below quadrant of the point
+                if hasattr(Qgis, "LabelQuadrantPosition"):
+                    # QGIS >= 3.26: use the new enum
+                    label_settings.quadOffset = Qgis.LabelQuadrantPosition.Below
+                else:
+                    # Older API: use QuadrantPosition enum from QgsPalLayerSettings
+                    if hasattr(QgsPalLayerSettings, "BottomMiddle"):
+                        label_settings.quadOffset = QgsPalLayerSettings.BottomMiddle
+                    elif hasattr(QgsPalLayerSettings, "Bottom"):
+                        label_settings.quadOffset = QgsPalLayerSettings.Bottom
                     else:
-                        label_settings.placement = 0
-                except:
-                    label_settings.placement = 0
+                        # last resort: standard bottom-middle index
+                        label_settings.quadOffset = QgsPalLayerSettings.BottomMiddle if hasattr(
+                            QgsPalLayerSettings, "BottomMiddle"
+                        ) else 0
+            except Exception as e:
+                print(f"DEBUG: Position festsetzen fehlgeschlagen: {e}")
 
-            # quadOffset für Positionierung - unter dem Symbol (unten)
             try:
-                if hasattr(Qgis, "LabelQuadrant"):
-                    # QGIS 3.x: LabelQuadrant ist in Qgis verschoben
-                    # Bottom = unter dem Symbol
-                    if hasattr(Qgis.LabelQuadrant, "Bottom"):
-                        label_settings.quadOffset = Qgis.LabelQuadrant.Bottom
-                    elif hasattr(Qgis.LabelQuadrant, "BottomCenter"):
-                        label_settings.quadOffset = Qgis.LabelQuadrant.BottomCenter
-                    elif hasattr(Qgis.LabelQuadrant, "BottomLeft"):
-                        label_settings.quadOffset = Qgis.LabelQuadrant.BottomLeft
-                    elif hasattr(Qgis.LabelQuadrant, "BottomRight"):
-                        label_settings.quadOffset = Qgis.LabelQuadrant.BottomRight
-                    else:
-                        # Versuche mit Integer-Wert (6 = Bottom in manchen Versionen)
-                        label_settings.quadOffset = 6
-                    print(f"DEBUG: quadOffset gesetzt (unter Symbol): {label_settings.quadOffset}")
-                elif hasattr(Qgis, "QuadrantPosition"):
-                    # Alternative: QuadrantPosition
-                    if hasattr(Qgis.QuadrantPosition, "Bottom"):
-                        label_settings.quadOffset = Qgis.QuadrantPosition.Bottom
-                    elif hasattr(Qgis.QuadrantPosition, "BottomCenter"):
-                        label_settings.quadOffset = Qgis.QuadrantPosition.BottomCenter
-                    else:
-                        label_settings.quadOffset = 6
-                    print(f"DEBUG: quadOffset gesetzt (QuadrantPosition): {label_settings.quadOffset}")
-                else:
-                    # Fallback: Versuche mit Integer (6 = Bottom)
-                    try:
-                        label_settings.quadOffset = 6  # Bottom
-                        print(f"DEBUG: quadOffset gesetzt (Integer 6 = Bottom)")
-                    except:
-                        print("DEBUG: LabelQuadrant/QuadrantPosition nicht verfügbar, überspringe quadOffset")
+                # Offset-Werte in Points , Abstand abhängig von der Größe des Zeichens
+                if hasattr(Qgis, "RenderUnit") and hasattr(Qgis.RenderUnit, "Points"):
+                    label_settings.offsetUnits = Qgis.RenderUnit.Points
+                size_property = QgsProperty.fromExpression("array(0,size)")
+                label_props.setProperty(QgsPalLayerSettings.Property.OffsetXY, size_property)
             except Exception as e:
-                print(f"DEBUG: Fehler beim Setzen von quadOffset: {e}")
-                import traceback
-
-                traceback.print_exc()
-                # Überspringe quadOffset, wenn es nicht funktioniert
-                pass
-
-            # Offset-Werte in Map Units - vertikaler Offset nach unten
-            label_settings.xOffset = 0.0  # Horizontaler Offset (zentriert)
-            label_settings.yOffset = -3.0  # Vertikaler Offset nach unten (negativ = nach unten, größerer Abstand)
+                print(f"DEBUG: Fehler bei der Festsetzung der Position: {e}")
 
             # Labeling auf Layer anwenden
             layer.setLabelsEnabled(True)
@@ -1132,7 +1060,7 @@ class THWToolboxPlugin:
             return
 
         # Save the settings
-        self._save_settings()
+        self.settings.save_settings(QgsProject.instance())
 
         # Aktuelle Datei-Pfad ermitteln
         current_source = self.layer.source().split("|")[0]
@@ -1469,8 +1397,8 @@ class THWToolboxPlugin:
         else:
             relative_path = svg_path
 
-        if self.settings.get("icon_fixed_size", self.ICON_FIXED_SIZE_DEFAULT):
-            icon_size = self.settings.get("default_icon_size", self.DEFAULT_ICON_SIZE_DEFAULT)
+        if self.settings.new_icon_fixed_size:
+            icon_size = self.settings.new_icon_size
         else:
             # Intelligente Größenberechnung basierend auf dem aktuellen Zoom-Faktor
             map_units_per_pixel = self.canvas.mapUnitsPerPixel()
@@ -1507,7 +1435,7 @@ class THWToolboxPlugin:
         f.setAttribute("svg_path", relative_path)  # Relativer Pfad
         f.setAttribute("svg_content", svg_content)  # SVG-Inhalt speichern
         f.setAttribute("size", icon_size)  # Adaptive Größe basierend auf Zoom-Faktor
-        f.setAttribute("scale_with_map", self.settings.get("scaling_icon_with_map", self.SCALING_ICON_WITH_MAP_DEFAULT))  # Standardmäßig nicht mit Karte skalieren
+        f.setAttribute("scale_with_map", self.settings.new_icon_scaling_with_map)  # Standardmäßig nicht mit Karte skalieren
         f.setAttribute("unique_id", str(uuid.uuid4()))  # Eindeutige ID generieren
         f.setAttribute("label", default_label)  # Standard-Label aus SVG-Namen
         f.setAttribute("show_label", False)  # Label standardmäßig nicht anzeigen
@@ -1689,44 +1617,34 @@ class THWToolboxPlugin:
         # Layer-Referenzen in anderen Klassen aktualisieren
         self._update_tool_references()
 
-    def _load_settings(self):
-        proj = QgsProject.instance()
-
-        scaling_icon_with_map_loaded, scaling_icon_with_map_ok = proj.readBoolEntry("taktischezeichen", "scaling_icon_with_map", self.SCALING_ICON_WITH_MAP_DEFAULT)
-        icon_fixed_size_loaded, icon_fixed_size_ok = proj.readBoolEntry("taktischezeichen", "icon_fixed_size", self.ICON_FIXED_SIZE_DEFAULT)
-        default_icon_size_loaded, default_icon_size_ok = proj.readNumEntry("taktischezeichen", "default_icon_size", self.DEFAULT_ICON_SIZE_DEFAULT)
-        default_label_crs_loaded, default_label_crs_ok = proj.readEntry("taktischezeichen", "default_label_crs", self.DEFAULT_LABEL_CRS_DEFAULT)
-
-        print(f"DEBUG: Tried to load settings with result {scaling_icon_with_map_ok} and return {scaling_icon_with_map_loaded}")
-        self.settings["scaling_icon_with_map"] = scaling_icon_with_map_loaded if scaling_icon_with_map_ok else self.SCALING_ICON_WITH_MAP_DEFAULT
-        self.settings["icon_fixed_size"] = icon_fixed_size_loaded if icon_fixed_size_ok else self.ICON_FIXED_SIZE_DEFAULT
-        self.settings["default_icon_size"] = default_icon_size_loaded if default_icon_size_ok else self.DEFAULT_ICON_SIZE_DEFAULT
-        self.settings["default_label_crs"] = default_label_crs_loaded if default_label_crs_ok else self.DEFAULT_LABEL_CRS_DEFAULT
+    
 
     def _open_config_dialog(self):
         dialog = QDialog(self.iface.mainWindow())
         dialog.setWindowTitle("THW Toolbox Einstellungen")
         layout = QVBoxLayout(dialog)
 
-        form = QFormLayout()
+        ##### Default Icon Settings #####
+        default_icon_settings_box = QGroupBox("Einstellungen für neue Zeichen")
+        default_icon_form = QFormLayout()
 
         # Scaling with Map Setting
         cb_scale = QCheckBox()
-        cb_scale.setChecked(self.settings.get("scaling_icon_with_map",self.SCALING_ICON_WITH_MAP_DEFAULT))
-        form.addRow("Neue Zeichen mit Karte skalieren", cb_scale)
+        cb_scale.setChecked(self.settings.new_icon_scaling_with_map)
+        default_icon_form.addRow("Neue Zeichen mit Karte skalieren", cb_scale)
 
         # Automatic Fixed Size Setting
         cb_fixed_size = QCheckBox()
-        cb_fixed_size.setChecked(self.settings.get("icon_fixed_size", self.ICON_FIXED_SIZE_DEFAULT))
-        form.addRow("Neue Zeichen mit fixer Standardgröße", cb_fixed_size)
+        cb_fixed_size.setChecked(self.settings.new_icon_fixed_size)
+        default_icon_form.addRow("Neue Zeichen mit fixer Standardgröße", cb_fixed_size)
 
         # Default Size (only active if cb_fixed_size is enabled)
         spin_icon_size =QSpinBox()
         spin_icon_size.setMinimum(10)
         spin_icon_size.setMaximum(200)
-        spin_icon_size.setValue(self.settings.get("default_icon_size",self.DEFAULT_ICON_SIZE_DEFAULT))
+        spin_icon_size.setValue(self.settings.new_icon_size)
         spin_icon_size.setSingleStep(1)  # Schrittweite
-        form.addRow("Fixe Standardgröße für neue Zeichen",spin_icon_size)
+        default_icon_form.addRow("Fixe Standardgröße für neue Zeichen",spin_icon_size)
         def update_spin_icon_size(checked):
             spin_icon_size.setEnabled(checked)
         cb_fixed_size.stateChanged.connect(update_spin_icon_size)
@@ -1735,12 +1653,42 @@ class THWToolboxPlugin:
         # Coordinate System of Label
         dropdown_crs = QComboBox()
         dropdown_crs.addItems(["MGRS","UTM"])
-        current_index = dropdown_crs.findText(self.settings.get("default_label_crs",self.DEFAULT_LABEL_CRS_DEFAULT))
+        current_index = dropdown_crs.findText(self.settings.new_icon_crs)
         if current_index >= 0:
             dropdown_crs.setCurrentIndex(current_index)
-        form.addRow("Koordinantesystem für Standortbeschriftung", dropdown_crs)
+        default_icon_form.addRow("Koordinantesystem für Standortbeschriftung", dropdown_crs)
 
-        layout.addLayout(form)
+        default_icon_settings_box.setLayout(default_icon_form)
+        layout.addWidget(default_icon_settings_box)
+
+        ##### Label Settings #####
+        label_settings_box = QGroupBox("Label Settings")
+        label_settings_form = QFormLayout()
+
+        # Global Enable
+        cb_label_enable = QCheckBox()
+        cb_label_enable.setChecked(self.settings.label_enable)
+        label_settings_form.addRow("Aktivierte Labels anzeigen", cb_label_enable)
+
+        # Label Size
+        sb_label_font_size = QSpinBox()
+        sb_label_font_size.setMinimum(1)
+        sb_label_font_size.setMaximum(100)
+        sb_label_font_size.setSingleStep(1)
+        sb_label_font_size.setValue(int(self.settings.label_font_size_mm * 10))
+        label_settings_form.addRow("Label Schriftgröße in mm", sb_label_font_size)
+
+        # Buffer Size
+        sb_label_buffer_size = QSpinBox()
+        sb_label_buffer_size.setMinimum(1)
+        sb_label_buffer_size.setMaximum(50)
+        sb_label_buffer_size.setSingleStep(1)
+        sb_label_buffer_size.setValue(int(self.settings.label_buffer_size_mm * 10))
+        label_settings_form.addRow("Label Rahmendicke in mm", sb_label_buffer_size)
+
+        label_settings_box.setLayout(label_settings_form)
+        layout.addWidget(label_settings_box)
+
 
         # Bestätigen / Abbrechen
         button_box = QDialogButtonBox(
@@ -1752,22 +1700,17 @@ class THWToolboxPlugin:
 
         result = dialog.exec_()
         if result is not QDialog.Rejected:
-            self.settings["scaling_icon_with_map"] = cb_scale.isChecked()
-            self.settings["icon_fixed_size"] = cb_fixed_size.isChecked()
-            self.settings["default_icon_size"] = spin_icon_size.value()
-            self.settings["default_label_crs"] = dropdown_crs.currentText()
-            self._save_settings()
+            self.settings.new_icon_scaling_with_map = cb_scale.isChecked()
+            self.settings.new_icon_fixed_size = cb_fixed_size.isChecked()
+            self.settings.new_icon_size = spin_icon_size.value()
+            self.settings.new_icon_crs = dropdown_crs.currentText()
 
-    def _save_settings(self):
-        proj = QgsProject.instance()
+            self.settings.label_enable = cb_label_enable.isChecked()
+            self.settings.label_font_size_mm = sb_label_font_size.value() / 10.0
+            self.settings.label_buffer_size_mm = sb_label_buffer_size.value() / 10.0
 
-        # Save the current settings
-        proj.writeEntryBool("taktischezeichen", "scaling_icon_with_map", bool(self.settings.get("scaling_icon_with_map", self.SCALING_ICON_WITH_MAP_DEFAULT)))
-        proj.writeEntryBool("taktischezeichen", "icon_fixed_size", bool(self.settings.get("icon_fixed_size", self.ICON_FIXED_SIZE_DEFAULT)))
-        proj.writeEntry("taktischezeichen", "default_icon_size", int(self.settings.get("default_icon_size", self.DEFAULT_ICON_SIZE_DEFAULT)))
-        proj.writeEntry("taktischezeichen", "default_label_crs", str(self.settings.get("default_label_crs", self.DEFAULT_LABEL_CRS_DEFAULT)))
-        proj.setDirty(True)
-        print("DEBUG: Config saved.")
+            self.settings.save_settings(QgsProject.instance())
+            self._init_renderer(self.layer)
 
 
     def resize_feature(self, fid, size):

@@ -20,8 +20,8 @@ class THWToolboxSettings:
         self._new_icon_crs = self.NEW_ICON_CRS_DEFAULT
 
         self._label_enable = self.LABEL_ENABLE_DEFAULT
-        self._label_font_size_mm = 1000 * self.LABEL_FONT_SIZE_DEFAULT_UM
-        self._label_buffer_size_mm = 1000* self.LABEL_BUFFER_SIZE_DEFAULT_UM
+        self._label_font_size_mm = self.LABEL_FONT_SIZE_DEFAULT_UM / 1000.0
+        self._label_buffer_size_mm = self.LABEL_BUFFER_SIZE_DEFAULT_UM / 1000.0
 
     @property
     def new_icon_scaling_with_map(self) -> bool:

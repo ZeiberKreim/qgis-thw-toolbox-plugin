@@ -132,11 +132,11 @@ class THWToolboxSettings:
                 if isinstance(value, bool):
                     proj.writeEntryBool(self.PLUGIN_NAME, config_key, value)
                 elif isinstance(value, str):
-                    proj.writeEntry(self.PLUGIN_NAME, config_key, str(value))
+                    proj.writeEntry(self.PLUGIN_NAME, config_key, value)
                 elif attr_name.endswith('_mm'):
                     config_key = config_key.replace('_mm', '_um')
-                    proj.writeEntry(self.PLUGIN_NAME, config_key, value * 1000)
+                    proj.writeEntry(self.PLUGIN_NAME, config_key, int(value * 1000))
                 else:
-                    proj.writeEntry(self.PLUGIN_NAME, config_key, value)
+                    proj.writeEntry(self.PLUGIN_NAME, config_key, int(value))
 
         proj.setDirty(True)

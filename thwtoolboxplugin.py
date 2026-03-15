@@ -1699,7 +1699,7 @@ class THWToolboxPlugin:
         button_box.rejected.connect(dialog.reject)
 
         result = dialog.exec_()
-        if result is not QDialog.Rejected:
+        if result == QDialog.Accepted:
             self.settings.new_icon_scaling_with_map = cb_scale.isChecked()
             self.settings.new_icon_fixed_size = cb_fixed_size.isChecked()
             self.settings.new_icon_size = spin_icon_size.value()

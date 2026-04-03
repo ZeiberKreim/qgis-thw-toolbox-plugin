@@ -1,5 +1,5 @@
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QCursor
+from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtGui import QCursor
 from qgis.core import QgsPointXY
 from qgis.gui import QgsMapToolEmitPoint
 
@@ -9,7 +9,7 @@ class DragDropMapTool(QgsMapToolEmitPoint):
         super().__init__(canvas)
         self.canvas = canvas
         self.drop_callback = drop_callback
-        self.setCursor(QCursor(Qt.OpenHandCursor))
+        self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))
 
     def canvasReleaseEvent(self, event):
         point = self.toMapCoordinates(event.pos())

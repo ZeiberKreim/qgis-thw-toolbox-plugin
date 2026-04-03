@@ -66,7 +66,11 @@ class CanvasDropFilter(QObject):
                 return True
         if ev.type() == QEvent.Type.Drop:
             svg = ev.mimeData().text()
-            pt = self.canvas.getCoordinateTransform().toMapCoordinates(ev.pos().x(), ev.pos().y())
+            if hasattr(ev, "position"):
+                pos = ev.position().toPoint()
+            else:
+                pos = ev.pos()
+            pt = self.canvas.getCoordinateTransform().toMapCoordinates(pos.x(), pos.y())
             self.place_cb(svg, QgsPointXY(pt))
             ev.acceptProposedAction()
             return True
@@ -352,11 +356,19 @@ class THWToolboxPlugin:
         msg_box.exec()
 
         # Zusätzlich auch in der Message Bar anzeigen
-        self.iface.messageBar().pushMessage(
-            title,
-            message,
-            level=3,  # Critical level
-        )
+        try: # QGIS4 Variant
+            self.iface.messageBar().pushMessage(
+                title,
+                message,
+                level = Qgis.MessageLevel.Critical,  # Critical level
+            )
+        except Exception:
+            # QGIS3 Variant
+            self.iface.messageBar().pushMessage(
+                title,
+                message,
+                level=3,  # Critical level
+            )
 
     def initGui(self):
         icon = QIcon(os.path.join(self.plugin_dir, "icons", "icon.svg"))
@@ -1167,9 +1179,21 @@ class THWToolboxPlugin:
             # Wichtiger: ganze Datei überschreiben statt nur Layer
             save_options.actionOnExistingFile = QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteFile
 
-            result = QgsVectorFileWriter.writeAsVectorFormatV2(
-                self.layer, new_gpkg, QgsProject.instance().transformContext(), save_options
-            )
+            transform_context = QgsProject.instance().transformContext()
+            try:
+                result = QgsVectorFileWriter.writeAsVectorFormatV3(
+                    self.layer, 
+                    new_gpkg, 
+                    transform_context, 
+                    save_options
+                )
+            except AttributeError: # Fallback in case <3.20
+                result = QgsVectorFileWriter.writeAsVectorFormatV3(
+                    self.layer, 
+                    new_gpkg, 
+                    transform_context, 
+                    save_options
+                )
 
             if result[0] != QgsVectorFileWriter.WriterError.NoError:
                 print(f"DEBUG: Writer-Export fehlgeschlagen: {result[1]} - versuche Datei-Kopie als Fallback")

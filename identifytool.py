@@ -63,6 +63,17 @@ class FeatureDock(QDockWidget):
 
         self.main_layout.addLayout(coord_layout)
 
+        # Label und Darstellung
+        label_layout = QHBoxLayout()
+        self.label_textfield_label = QLabel("Label:")
+        label_layout.addWidget(self.label_textfield_label)
+        self.label_textfield = QLineEdit()
+        label_layout.addWidget(self.label_textfield)
+        self.cb_enable_label = QCheckBox("Label auf Karte zeigen")
+        label_layout.addWidget(self.cb_enable_label)
+        self.main_layout.addLayout(label_layout)
+
+
         # Größen-SpinBox und Schieberegler
         size_layout = QHBoxLayout()
         self.size_label = QLabel("Größe:")
@@ -114,27 +125,6 @@ class FeatureDock(QDockWidget):
         rotation_layout.addWidget(self.rotation_value_label)
 
         self.main_layout.addLayout(rotation_layout)
-
-        # Label-Sektion (vorerst ausgeblendet, Code bleibt für später erhalten)
-        label_layout = QVBoxLayout()
-        self.label_text_label = QLabel("Label:")
-        label_layout.addWidget(self.label_text_label)
-
-        self.label_input = QLineEdit()
-        self.label_input.setPlaceholderText("Label-Text eingeben...")
-        self.label_input.setStyleSheet("QLineEdit { padding: 4px; border: 1px solid #ccc; border-radius: 3px; }")
-        label_layout.addWidget(self.label_input)
-
-        self.main_layout.addLayout(label_layout)
-
-        # Label-Anzeige-Checkbox (vorerst ausgeblendet, Code bleibt für später erhalten)
-        self.show_label_checkbox = QCheckBox("Label anzeigen")
-        self.main_layout.addWidget(self.show_label_checkbox)
-
-        # Label-Funktion vorerst ausblenden
-        self.label_text_label.hide()
-        self.label_input.hide()
-        self.show_label_checkbox.hide()
 
         # Weißer Hintergrund-Checkbox
         self.white_background_checkbox = QCheckBox("Weißer Hintergrund")
@@ -191,9 +181,9 @@ class FeatureDock(QDockWidget):
         self.rotation_label.hide()
         self.rotation_slider.hide()
         self.rotation_value_label.hide()
-        self.label_text_label.hide()
-        self.label_input.hide()
-        self.show_label_checkbox.hide()
+        self.label_textfield_label.hide()
+        self.label_textfield.hide()
+        self.cb_enable_label.hide()
         self.white_background_checkbox.hide()
         self.btn_delete.hide()
 
@@ -374,9 +364,9 @@ class FeatureDock(QDockWidget):
         self.rotation_slider.show()
         self.rotation_value_label.show()
         # Label-Funktion vorerst ausgeblendet (Code bleibt für später erhalten)
-        # self.label_text_label.show()
-        # self.label_input.show()
-        # self.show_label_checkbox.show()
+        self.label_textfield_label.show()
+        self.label_textfield.show()
+        self.cb_enable_label.show()
         self.white_background_checkbox.show()
         self.btn_delete.show()
 
@@ -399,8 +389,8 @@ class FeatureDock(QDockWidget):
         except:
             label_text = ""
             show_label = False
-        self.label_input.setText(label_text)
-        self.show_label_checkbox.setChecked(show_label)
+        self.label_textfield.setText(label_text)
+        self.cb_enable_label.setChecked(show_label)
 
         # Weißer Hintergrund-Wert setzen
         try:
@@ -431,11 +421,11 @@ class FeatureDock(QDockWidget):
         self.scale_checkbox.stateChanged.disconnect() if self.scale_checkbox.receivers(
             self.scale_checkbox.stateChanged
         ) > 0 else None
-        self.label_input.textChanged.disconnect() if self.label_input.receivers(
-            self.label_input.textChanged
+        self.label_textfield.textChanged.disconnect() if self.label_textfield.receivers(
+            self.label_textfield.textChanged
         ) > 0 else None
-        self.show_label_checkbox.stateChanged.disconnect() if self.show_label_checkbox.receivers(
-            self.show_label_checkbox.stateChanged
+        self.cb_enable_label.stateChanged.disconnect() if self.cb_enable_label.receivers(
+            self.cb_enable_label.stateChanged
         ) > 0 else None
         self.white_background_checkbox.stateChanged.disconnect() if self.white_background_checkbox.receivers(
             self.white_background_checkbox.stateChanged
@@ -452,8 +442,8 @@ class FeatureDock(QDockWidget):
         self.size_spinbox.valueChanged.connect(self.on_size_change)
         self.size_slider.valueChanged.connect(self.on_size_change)
         self.scale_checkbox.stateChanged.connect(self.on_scale_toggle)
-        self.label_input.textChanged.connect(self.on_label_changed)
-        self.show_label_checkbox.stateChanged.connect(self.on_show_label_toggle)
+        self.label_textfield.textChanged.connect(self.on_label_changed)
+        self.cb_enable_label.stateChanged.connect(self.on_show_label_toggle)
         self.white_background_checkbox.stateChanged.connect(self.on_white_background_toggle)
         self.rotation_slider.valueChanged.connect(self.on_rotation_change)
         self.rotation_slider.sliderReleased.connect(self.on_rotation_slider_released)

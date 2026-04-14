@@ -2,9 +2,9 @@
 
 import math
 
-from PyQt5.QtCore import QPoint, QRect, Qt, QTimer
-from PyQt5.QtGui import QBrush, QColor, QPainter, QPen
-from PyQt5.QtWidgets import QApplication
+from qgis.PyQt.QtCore import QPoint, QRect, Qt, QTimer
+from qgis.PyQt.QtGui import QBrush, QColor, QPainter, QPen
+from qgis.PyQt.QtWidgets import QApplication
 from qgis.core import QgsFeature, QgsFeatureRequest, QgsGeometry, QgsMapToPixel, QgsPointXY
 from qgis.gui import QgsMapCanvas, QgsMapTool
 
@@ -17,7 +17,7 @@ class SelectionTool(QgsMapTool):
         self.canvas = canvas
         self.layer_manager = layer_manager
         self.layer = layer_manager.layer
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
 
         # Ausgewähltes Feature
         self.selected_feature = None
@@ -94,12 +94,12 @@ class SelectionTool(QgsMapTool):
             self.temp_overlay.deleteLater()
 
         # Erstelle neues Overlay-Widget
-        from PyQt5.QtWidgets import QWidget
+        from qgis.PyQt.QtWidgets import QWidget
 
         self.temp_overlay = QWidget(self.canvas)
-        self.temp_overlay.setAttribute(Qt.WA_TransparentForMouseEvents, False)
-        self.temp_overlay.setAttribute(Qt.WA_NoSystemBackground, True)
-        self.temp_overlay.setWindowFlags(Qt.Widget | Qt.FramelessWindowHint)
+        self.temp_overlay.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        self.temp_overlay.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.temp_overlay.setWindowFlags(Qt.WindowType.Widget | Qt.WindowType.FramelessWindowHint)
         self.temp_overlay.setParent(self.canvas)
         self.temp_overlay.move(0, 0)
         self.temp_overlay.resize(self.canvas.size())
@@ -116,12 +116,12 @@ class SelectionTool(QgsMapTool):
             return
 
         painter = QPainter(self.temp_overlay)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Zeichne Border
-        pen = QPen(self.border_color, 2, Qt.DashLine)
+        pen = QPen(self.border_color, 2, Qt.PenStyle.DashLine)
         painter.setPen(pen)
-        painter.setBrush(Qt.NoBrush)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(self.selection_bounds)
 
         # Zeichne Resize-Punkte
@@ -201,20 +201,20 @@ class SelectionTool(QgsMapTool):
     def _get_cursor_for_handle(self, handle_index):
         """Gibt den passenden Cursor für den Resize-Punkt zurück"""
         if handle_index is None:
-            return Qt.ArrowCursor
+            return Qt.CursorShape.ArrowCursor
 
         # Ecken
         if handle_index in [0, 2]:  # Oben links, unten rechts
-            return Qt.SizeFDiagCursor
+            return Qt.CursorShape.SizeFDiagCursor
         elif handle_index in [1, 3]:  # Oben rechts, unten links
-            return Qt.SizeBDiagCursor
+            return Qt.CursorShape.SizeBDiagCursor
         # Seiten-Mittelpunkte
         elif handle_index in [4, 6]:  # Oben/unten Mitte
-            return Qt.SizeVerCursor
+            return Qt.CursorShape.SizeVerCursor
         elif handle_index in [5, 7]:  # Links/rechts Mitte
-            return Qt.SizeHorCursor
+            return Qt.CursorShape.SizeHorCursor
         else:
-            return Qt.ArrowCursor
+            return Qt.CursorShape.ArrowCursor
 
     def canvasMoveEvent(self, event):
         """Behandelt Mausbewegungen"""
@@ -238,7 +238,7 @@ class SelectionTool(QgsMapTool):
 
     def canvasPressEvent(self, event):
         """Behandelt Mausklicks"""
-        if event.button() != Qt.LeftButton or not self.selected_feature:
+        if event.button() != Qt.MouseButton.LeftButton or not self.selected_feature:
             return
 
         # Prüfe, ob Klick auf einem Resize-Punkt
@@ -257,12 +257,12 @@ class SelectionTool(QgsMapTool):
 
     def canvasReleaseEvent(self, event):
         """Behandelt Mausloslassen"""
-        if event.button() == Qt.LeftButton and self.is_resizing:
+        if event.button() == Qt.MouseButton.LeftButton and self.is_resizing:
             # Beende Resize-Modus
             self.is_resizing = False
             self.active_handle = None
             self.resize_start_pos = None
-            self.setCursor(Qt.ArrowCursor)
+            self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def _update_feature_size(self, current_pos):
         """Aktualisiert die Größe des Features basierend auf der Mausbewegung"""

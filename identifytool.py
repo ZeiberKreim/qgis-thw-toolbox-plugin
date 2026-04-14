@@ -3,6 +3,8 @@
 import os
 import time
 
+from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsFeatureRequest, QgsProject
+from qgis.gui import QgsMapToolIdentify
 from qgis.PyQt.QtCore import Qt, QTimer
 from qgis.PyQt.QtGui import QPixmap
 from qgis.PyQt.QtWidgets import (
@@ -22,8 +24,6 @@ from qgis.PyQt.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsFeatureRequest, QgsProject
-from qgis.gui import QgsMapToolIdentify
 
 
 class FeatureDock(QDockWidget):
@@ -305,7 +305,9 @@ class FeatureDock(QDockWidget):
             if pixmap is not None and not pixmap.isNull():
                 print("DEBUG: Pixmap erfolgreich geladen, skaliere für Vorschau")
                 # Skaliere das Bild für die Vorschau
-                scaled_pixmap = pixmap.scaled(180, 180, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                scaled_pixmap = pixmap.scaled(
+                    180, 180, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+                )
                 self.svg_label.setPixmap(scaled_pixmap)
                 self.svg_label.setStyleSheet("QLabel { border: 2px solid #2E86AB; background-color: white; }")
                 print("DEBUG: SVG-Preview erfolgreich angezeigt")

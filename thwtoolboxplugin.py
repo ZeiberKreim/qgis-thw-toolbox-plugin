@@ -2,24 +2,6 @@ import os
 import time
 import uuid
 
-from qgis.PyQt.QtCore import QEvent, QObject, QSize, Qt, QVariant
-from qgis.PyQt.QtGui import QColor, QDrag, QIcon, QPixmap
-from qgis.PyQt.QtWidgets import (
-    QAction,
-    QCheckBox,
-    QDialog,
-    QDockWidget,
-    QHBoxLayout,
-    QInputDialog,
-    QLabel,
-    QListWidget,
-    QListWidgetItem,
-    QMessageBox,
-    QPushButton,
-    QSlider,
-    QVBoxLayout,
-    QWidget,
-)
 from qgis.core import (
     Qgis,
     QgsCategorizedSymbolRenderer,
@@ -46,7 +28,24 @@ from qgis.core import (
     QgsVectorLayerSimpleLabeling,
 )
 from qgis.gui import QgsMapTool, QgsMapToolIdentify
-from qgis.PyQt.QtCore import QVariant
+from qgis.PyQt.QtCore import QEvent, QObject, QSize, Qt, QVariant
+from qgis.PyQt.QtGui import QColor, QDrag, QIcon, QPixmap
+from qgis.PyQt.QtWidgets import (
+    QAction,
+    QCheckBox,
+    QDialog,
+    QDockWidget,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPushButton,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
+)
 from qgis.utils import iface
 
 from .identifytool import FeatureDock
@@ -356,11 +355,11 @@ class THWToolboxPlugin:
         msg_box.exec()
 
         # Zusätzlich auch in der Message Bar anzeigen
-        try: # QGIS4 Variant
+        try:  # QGIS4 Variant
             self.iface.messageBar().pushMessage(
                 title,
                 message,
-                level = Qgis.MessageLevel.Critical,  # Critical level
+                level=Qgis.MessageLevel.Critical,  # Critical level
             )
         except Exception:
             # QGIS3 Variant
@@ -1182,17 +1181,11 @@ class THWToolboxPlugin:
             transform_context = QgsProject.instance().transformContext()
             try:
                 result = QgsVectorFileWriter.writeAsVectorFormatV3(
-                    self.layer, 
-                    new_gpkg, 
-                    transform_context, 
-                    save_options
+                    self.layer, new_gpkg, transform_context, save_options
                 )
-            except AttributeError: # Fallback in case <3.20
+            except AttributeError:  # Fallback in case <3.20
                 result = QgsVectorFileWriter.writeAsVectorFormatV3(
-                    self.layer, 
-                    new_gpkg, 
-                    transform_context, 
-                    save_options
+                    self.layer, new_gpkg, transform_context, save_options
                 )
 
             if result[0] != QgsVectorFileWriter.WriterError.NoError:

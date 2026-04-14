@@ -1,5 +1,5 @@
-from qgis.PyQt.QtCore import QEvent, QObject
 from qgis.core import QgsPointXY
+from qgis.PyQt.QtCore import QEvent, QObject
 
 
 class CanvasDropFilter(QObject):

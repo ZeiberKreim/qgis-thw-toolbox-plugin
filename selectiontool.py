@@ -2,11 +2,11 @@
 
 import math
 
+from qgis.core import QgsFeature, QgsFeatureRequest, QgsGeometry, QgsMapToPixel, QgsPointXY
+from qgis.gui import QgsMapCanvas, QgsMapTool
 from qgis.PyQt.QtCore import QPoint, QRect, Qt, QTimer
 from qgis.PyQt.QtGui import QBrush, QColor, QPainter, QPen
 from qgis.PyQt.QtWidgets import QApplication
-from qgis.core import QgsFeature, QgsFeatureRequest, QgsGeometry, QgsMapToPixel, QgsPointXY
-from qgis.gui import QgsMapCanvas, QgsMapTool
 
 
 class SelectionTool(QgsMapTool):

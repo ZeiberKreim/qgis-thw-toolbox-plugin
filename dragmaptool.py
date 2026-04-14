@@ -1,7 +1,7 @@
-from qgis.PyQt.QtCore import Qt
-from qgis.PyQt.QtGui import QCursor
 from qgis.core import QgsPointXY
 from qgis.gui import QgsMapToolEmitPoint
+from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtGui import QCursor
 
 
 class DragDropMapTool(QgsMapToolEmitPoint):

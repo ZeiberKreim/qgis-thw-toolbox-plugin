@@ -51,6 +51,10 @@ from qgis.utils import iface
 from .identifytool import FeatureDock
 from .thwtoolboxplugin_dock import SvgDock
 
+# Qt6 compatibility: QVariant.Bool was removed in Qt6/PyQt6.
+# Use QVariant.Int as fallback since booleans are stored as integers in most backends.
+QVARIANT_BOOL = getattr(QVariant, "Bool", QVariant.Int)
+
 
 class CanvasDropFilter(QObject):
     def __init__(self, canvas, place_cb):
@@ -601,11 +605,11 @@ class THWToolboxPlugin:
                     QgsField("svg_path", QVariant.String),
                     QgsField("svg_content", QVariant.String),
                     QgsField("size", QVariant.Double),
-                    QgsField("scale_with_map", QVariant.Bool),
+                    QgsField("scale_with_map", QVARIANT_BOOL),
                     QgsField("unique_id", QVariant.String),
                     QgsField("label", QVariant.String),
-                    QgsField("show_label", QVariant.Bool),
-                    QgsField("white_background", QVariant.Bool),
+                    QgsField("show_label", QVARIANT_BOOL),
+                    QgsField("white_background", QVARIANT_BOOL),
                     QgsField("rotation", QVariant.Double),
                 ]
             )
@@ -675,11 +679,11 @@ class THWToolboxPlugin:
                     QgsField("svg_path", QVariant.String),
                     QgsField("svg_content", QVariant.String),
                     QgsField("size", QVariant.Double),
-                    QgsField("scale_with_map", QVariant.Bool),
+                    QgsField("scale_with_map", QVARIANT_BOOL),
                     QgsField("unique_id", QVariant.String),
                     QgsField("label", QVariant.String),
-                    QgsField("show_label", QVariant.Bool),
-                    QgsField("white_background", QVariant.Bool),
+                    QgsField("show_label", QVARIANT_BOOL),
+                    QgsField("white_background", QVARIANT_BOOL),
                     QgsField("rotation", QVariant.Double),
                 ]
             )
@@ -1411,11 +1415,11 @@ class THWToolboxPlugin:
             "svg_path": QVariant.String,
             "svg_content": QVariant.String,  # Neues Feld für SVG-Inhalt
             "size": QVariant.Double,
-            "scale_with_map": QVariant.Bool,
+            "scale_with_map": QVARIANT_BOOL,
             "unique_id": QVariant.String,  # Eindeutige ID für jedes Zeichen
             "label": QVariant.String,  # Label-Text für das Zeichen
-            "show_label": QVariant.Bool,  # Ob das Label angezeigt werden soll
-            "white_background": QVariant.Bool,  # Ob ein weißer Hintergrund angezeigt werden soll
+            "show_label": QVARIANT_BOOL,  # Ob das Label angezeigt werden soll
+            "white_background": QVARIANT_BOOL,  # Ob ein weißer Hintergrund angezeigt werden soll
             "rotation": QVariant.Double,  # Rotationswinkel in Grad
         }
 
@@ -1605,11 +1609,11 @@ class THWToolboxPlugin:
                 QgsField("svg_path", QVariant.String),
                 QgsField("svg_content", QVariant.String),
                 QgsField("size", QVariant.Double),
-                QgsField("scale_with_map", QVariant.Bool),
+                QgsField("scale_with_map", QVARIANT_BOOL),
                 QgsField("unique_id", QVariant.String),
                 QgsField("label", QVariant.String),
-                QgsField("show_label", QVariant.Bool),
-                QgsField("white_background", QVariant.Bool),
+                QgsField("show_label", QVARIANT_BOOL),
+                QgsField("white_background", QVARIANT_BOOL),
                 QgsField("rotation", QVariant.Double),
             ]
         )

@@ -8,10 +8,10 @@ Ein QGIS-Plugin für das einfache Hinzufügen und Verwalten von taktischen Zeich
 
 ## Schnellstart
 
-1. **Plugin aktivieren** — Klicken Sie auf das THW Toolbox-Symbol in der QGIS-Toolbar
-2. **Symbol auswählen** — Wählen Sie ein Symbol aus dem Dock aus
-3. **Platzieren** — Ziehen Sie das Symbol auf die Karte oder klicken Sie auf die gewünschte Position
-4. **Bearbeiten** — Klicken Sie auf ein Symbol, um es zu verschieben, zu skalieren oder zu beschriften
+1. **Plugin aktivieren** - Klicken Sie auf das THW Toolbox-Symbol in der QGIS-Toolbar
+2. **Symbol auswählen** - Wählen Sie ein Symbol aus dem Dock aus
+3. **Platzieren** - Ziehen Sie das Symbol auf die Karte oder klicken Sie auf die gewünschte Position
+4. **Bearbeiten** - Klicken Sie auf ein Symbol, um es zu verschieben, zu skalieren oder zu beschriften
 
 ---
 
@@ -19,24 +19,24 @@ Ein QGIS-Plugin für das einfache Hinzufügen und Verwalten von taktischen Zeich
 
 ### Symbol-Platzierung
 
-- **Drag & Drop** — Symbole direkt aus dem Dock auf die Karte ziehen
-- **Klick-Modus** — Symbol auswählen und auf die gewünschte Position klicken
-- **Intelligente Größenanpassung** — Symbole werden automatisch an den Zoom-Faktor angepasst
-- **Persistente Speicherung** — Alle Symbole werden automatisch in einer GeoPackage-Datei gespeichert
+- **Drag & Drop** - Symbole direkt aus dem Dock auf die Karte ziehen
+- **Klick-Modus** - Symbol auswählen und auf die gewünschte Position klicken
+- **Intelligente Größenanpassung** - Symbole werden automatisch an den Zoom-Faktor angepasst
+- **Persistente Speicherung** - Alle Symbole werden automatisch in einer GeoPackage-Datei gespeichert
 
 ### Feature-Management
 
-- **Identifizierung** — Klick auf Symbole zeigt Details an
-- **Verschieben** — Symbole per Maus an neue Position ziehen
-- **Größenanpassung** — Dynamische Größenänderung mit Schieberegler
-- **Labeling** — Beschriftung mit anpassbarem Text und Positionierung
-- **Echtzeit-Vorschau** — Sofortige visuelle Rückmeldung bei Änderungen
+- **Identifizierung** - Klick auf Symbole zeigt Details an
+- **Verschieben** - Symbole per Maus an neue Position ziehen
+- **Größenanpassung** - Dynamische Größenänderung mit Schieberegler
+- **Labeling** - Beschriftung mit anpassbarem Text und Positionierung
+- **Echtzeit-Vorschau** - Sofortige visuelle Rückmeldung bei Änderungen
 
 ### Einstellungen (neu in 2.0)
 
-- **Einstellungs-Dialog** — Zentrale Konfiguration über das Zahnrad-Icon im Dock
-- **Icon-Standardwerte** — Standardgröße und Kartenskalierung konfigurierbar
-- **Label-Konfiguration** — Schriftgröße, Buffer-Größe und Labels ein-/ausschalten
+- **Einstellungs-Dialog** - Zentrale Konfiguration über das Zahnrad-Icon im Dock
+- **Icon-Standardwerte** - Standardgröße und Kartenskalierung konfigurierbar
+- **Label-Konfiguration** - Schriftgröße, Buffer-Größe und Labels ein-/ausschalten
 
 ### Symbol-Bibliothek
 
@@ -60,15 +60,15 @@ Umfassende Sammlung von über 1000 taktischen Zeichen:
 ### Symbol-Suche
 
 - **Echtzeit-Filterung** beim Tippen
-- **Mehrsprachig** — Deutsch und Englisch
-- **Kategorien-Filter** — Schnelle Navigation durch Kategorien
+- **Mehrsprachig** - Deutsch und Englisch
+- **Kategorien-Filter** - Schnelle Navigation durch Kategorien
 
 ### Datenverwaltung
 
-- **Automatisches Speichern** — Änderungen werden sofort gespeichert
-- **Projekt-Integration** — Layer-Dateien werden beim Speichern des Projekts verschoben
-- **Portable Pakete** — Export-Funktion für vollständig portable Symbol-Sammlungen
-- **SVG-Embedding** — SVG-Inhalte werden in der GeoPackage eingebettet für maximale Portabilität
+- **Automatisches Speichern** - Änderungen werden sofort gespeichert
+- **Projekt-Integration** - Layer-Dateien werden beim Speichern des Projekts verschoben
+- **Portable Pakete** - Export-Funktion für vollständig portable Symbol-Sammlungen
+- **SVG-Embedding** - SVG-Inhalte werden in der GeoPackage eingebettet für maximale Portabilität
 
 ---
 
@@ -78,7 +78,7 @@ Umfassende Sammlung von über 1000 taktischen Zeichen:
 
 - **QGIS** 3.0 oder höher
 - **Python** 3.x (wird mit QGIS mitgeliefert)
-- **Betriebssystem** — Windows, Linux oder macOS
+- **Betriebssystem** - Windows, Linux oder macOS
 
 ### Option 1: QGIS Plugin-Manager (empfohlen)
 
@@ -113,13 +113,13 @@ Umfassende Sammlung von über 1000 taktischen Zeichen:
 
 ### Symbole bearbeiten
 
-**Auswählen** — Klick auf ein Symbol auf der Karte öffnet das Feature-Dock mit allen Eigenschaften
+**Auswählen** - Klick auf ein Symbol auf der Karte öffnet das Feature-Dock mit allen Eigenschaften
 
-**Verschieben** — Linke Maustaste gedrückt halten und an die neue Position ziehen
+**Verschieben** - Linke Maustaste gedrückt halten und an die neue Position ziehen
 
-**Größe ändern** — Größen-Schieberegler im Feature-Dock verwenden
+**Größe ändern** - Größen-Schieberegler im Feature-Dock verwenden
 
-**Label bearbeiten** — "Label anzeigen" aktivieren und Text eingeben
+**Label bearbeiten** - "Label anzeigen" aktivieren und Text eingeben
 
 ### Symbol-Suche
 
@@ -154,10 +154,10 @@ Suchleiste im oberen Bereich des Symbol-Docks nutzen. Funktioniert mit deutschen
 
 ### Performance
 
-- **Intelligente Toleranz** — Feature-Erkennung basiert auf Symbolgröße
-- **Throttling** — Aktualisierungen werden gedrosselt
-- **Caching** — SVG-Icons werden gecacht
-- **Lazy Loading** — Ordner werden nur bei Bedarf geladen
+- **Intelligente Toleranz** - Feature-Erkennung basiert auf Symbolgröße
+- **Throttling** - Aktualisierungen werden gedrosselt
+- **Caching** - SVG-Icons werden gecacht
+- **Lazy Loading** - Ordner werden nur bei Bedarf geladen
 
 ---
 
@@ -233,9 +233,9 @@ Dieses Plugin steht unter der **MIT-Lizenz**. Siehe `LICENSE` für Details.
 
 Verbesserungsvorschläge, Bug-Reports und Pull Requests sind herzlich willkommen!
 
-- **Bug-Reports** — Fehler über GitHub Issues melden
-- **Feature-Vorschläge** — Ideen teilen
-- **Code-Beiträge** — Pull Requests sind willkommen
+- **Bug-Reports** - Fehler über GitHub Issues melden
+- **Feature-Vorschläge** - Ideen teilen
+- **Code-Beiträge** - Pull Requests sind willkommen
 
 ---
 

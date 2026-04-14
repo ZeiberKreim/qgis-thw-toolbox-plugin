@@ -1,7 +1,7 @@
 import logging
 import os
 
-from PyQt5.QtCore import QVariant
+from qgis.PyQt.QtCore import QVariant
 from qgis.core import QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsProject, QgsVectorFileWriter, QgsVectorLayer
 
 # Logger konfigurieren
@@ -62,7 +62,7 @@ class LayerManager:
                     mem, gpkg, QgsProject.instance().transformContext(), opts
                 )
 
-                if result[0] != QgsVectorFileWriter.NoError:
+                if result[0] != QgsVectorFileWriter.WriterError.NoError:
                     logger.error(f"Fehler beim Erstellen der GeoPackage-Datei: {result[1]}")
                     raise Exception(f"Konnte GeoPackage nicht erstellen: {result[1]}")
 
@@ -93,7 +93,7 @@ class LayerManager:
 
     def resize_feature(self, fid, size):
         caps = self.layer.dataProvider().capabilities()
-        if caps & QgsVectorDataProvider.ChangeAttributeValues:
+        if caps & QgsVectorDataProvider.Capability.ChangeAttributeValues:
             idx = self.layer.fields().indexFromName("size")
             self.layer.startEditing()
             self.layer.changeAttributeValue(fid, idx, size)

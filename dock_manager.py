@@ -1,7 +1,7 @@
 import os
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QDockWidget, QSizePolicy
+from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtWidgets import QDockWidget, QSizePolicy
 
 from .thwtoolboxplugin_dock import SvgDock
 
@@ -17,12 +17,12 @@ class DockManager:
         if self.dock_widget:
             return
         dock = QDockWidget("Symbole", self.iface.mainWindow())
-        dock.setAllowedAreas(Qt.RightDockWidgetArea)
+        dock.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea)
         w = SvgDock(self.plugin_dir, self.select_cb)
-        w.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        w.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         dock.setWidget(w)
         dock.setMinimumWidth(30)
-        self.iface.addDockWidget(Qt.RightDockWidgetArea, dock)
+        self.iface.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
         self.dock_widget = dock
 
     def remove(self):

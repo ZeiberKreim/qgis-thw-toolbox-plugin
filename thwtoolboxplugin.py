@@ -2,9 +2,9 @@ import os
 import time
 import uuid
 
-from PyQt5.QtCore import QEvent, QObject, QSize, Qt, QVariant
-from PyQt5.QtGui import QColor, QDrag, QIcon, QPixmap
-from PyQt5.QtWidgets import (
+from qgis.PyQt.QtCore import QEvent, QObject, QSize, Qt, QVariant
+from qgis.PyQt.QtGui import QColor, QDrag, QIcon, QPixmap
+from qgis.PyQt.QtWidgets import (
     QAction,
     QCheckBox,
     QComboBox,
@@ -66,13 +66,17 @@ class CanvasDropFilter(QObject):
         self.place_cb = place_cb
 
     def eventFilter(self, obj, ev):
-        if ev.type() == QEvent.DragEnter:
+        if ev.type() == QEvent.Type.DragEnter:
             if ev.mimeData().hasText():
                 ev.acceptProposedAction()
                 return True
-        if ev.type() == QEvent.Drop:
+        if ev.type() == QEvent.Type.Drop:
             svg = ev.mimeData().text()
-            pt = self.canvas.getCoordinateTransform().toMapCoordinates(ev.pos().x(), ev.pos().y())
+            if hasattr(ev, "position"):
+                pos = ev.position().toPoint()
+            else:
+                pos = ev.pos()
+            pt = self.canvas.getCoordinateTransform().toMapCoordinates(pos.x(), pos.y())
             self.place_cb(svg, QgsPointXY(pt))
             ev.acceptProposedAction()
             return True
@@ -85,11 +89,11 @@ class IdentifyTool(QgsMapToolIdentify):
         self.canvas = canvas
         self.layer_manager = layer_manager
         self.layer = layer_manager.layer
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
 
         # Dock-Widget erstellen
         self.feature_dock = FeatureDock(layer_manager.iface.mainWindow())
-        layer_manager.iface.addDockWidget(Qt.RightDockWidgetArea, self.feature_dock)
+        layer_manager.iface.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.feature_dock)
 
     def _calculate_tolerance(self, feature):
         """Berechnet die Toleranz für Feature-Erkennung basierend auf der Symbolgröße."""
@@ -97,7 +101,7 @@ class IdentifyTool(QgsMapToolIdentify):
         return max(symbol_size * 0.5, 10.0)  # Mindestens 10 Map Units, sonst halbe Symbolgröße
 
     def canvasReleaseEvent(self, ev):
-        if ev.button() != Qt.LeftButton:
+        if ev.button() != Qt.MouseButton.LeftButton:
             return
         try:
             # Konvertiere Mausposition zu Kartenkoordinaten
@@ -143,7 +147,7 @@ class MoveTool(QgsMapTool):
         self.layer = layer_manager.layer
         self.moving_feature = None
         self.is_move_mode = False
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
         self.pan_start = None
         self.is_panning = False
         self.last_center = None
@@ -164,9 +168,9 @@ class MoveTool(QgsMapTool):
     def set_move_mode(self, enabled):
         self.is_move_mode = enabled
         if enabled:
-            self.setCursor(Qt.PointingHandCursor)
+            self.setCursor(Qt.CursorShape.PointingHandCursor)
         else:
-            self.setCursor(Qt.ArrowCursor)
+            self.setCursor(Qt.CursorShape.ArrowCursor)
         self.moving_feature = None
 
     def canvasMoveEvent(self, event):
@@ -190,14 +194,14 @@ class MoveTool(QgsMapTool):
                             closest_feature = feature
 
                 if closest_feature:
-                    self.setCursor(Qt.PointingHandCursor)
+                    self.setCursor(Qt.CursorShape.PointingHandCursor)
                 else:
-                    self.setCursor(Qt.ArrowCursor)
+                    self.setCursor(Qt.CursorShape.ArrowCursor)
 
                 self.last_update_time = current_time
         else:
             # Wenn im Move-Modus, Cursor entsprechend setzen
-            self.setCursor(Qt.ClosedHandCursor)
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
 
         if self.moving_feature:
             # Aktualisiere die Position des Features mit verbessertem Throttling
@@ -251,7 +255,7 @@ class MoveTool(QgsMapTool):
             self.canvas.refresh()
 
     def canvasPressEvent(self, event):
-        if event.button() != Qt.LeftButton:
+        if event.button() != Qt.MouseButton.LeftButton:
             return
 
         # Konvertiere Mausposition zu Kartenkoordinaten
@@ -275,7 +279,7 @@ class MoveTool(QgsMapTool):
 
         if closest_feature:
             self.moving_feature = closest_feature
-            self.setCursor(Qt.ClosedHandCursor)
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
             # Zeige Feature-Details an
             if hasattr(self.layer_manager, "ident_tool") and hasattr(self.layer_manager.ident_tool, "feature_dock"):
                 self.layer_manager.ident_tool.feature_dock.show_feature(closest_feature, self.layer_manager)
@@ -293,7 +297,7 @@ class MoveTool(QgsMapTool):
             self.last_center = self.canvas.center()
 
     def canvasReleaseEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             if self.moving_feature:
                 # Layer-Änderungen committen wenn im Edit-Modus
                 if self.is_editing:
@@ -302,7 +306,7 @@ class MoveTool(QgsMapTool):
 
                 self.moving_feature = None
                 self.last_pos = None
-                self.setCursor(Qt.PointingHandCursor)
+                self.setCursor(Qt.CursorShape.PointingHandCursor)
             elif self.is_panning:
                 # Normales Pan-Verhalten
                 self.is_panning = False
@@ -351,21 +355,29 @@ class THWToolboxPlugin:
     def _show_error_alert(self, title, message, details=None):
         """Zeigt einen Fehler-Alert mit optionalen Details."""
         msg_box = QMessageBox(self.iface.mainWindow())
-        msg_box.setIcon(QMessageBox.Critical)
+        msg_box.setIcon(QMessageBox.Icon.Critical)
         msg_box.setWindowTitle(title)
         msg_box.setText(message)
 
         if details:
             msg_box.setDetailedText(details)
 
-        msg_box.exec_()
+        msg_box.exec()
 
         # Zusätzlich auch in der Message Bar anzeigen
-        self.iface.messageBar().pushMessage(
-            title,
-            message,
-            level=3,  # Critical level
-        )
+        try: # QGIS4 Variant
+            self.iface.messageBar().pushMessage(
+                title,
+                message,
+                level = Qgis.MessageLevel.Critical,  # Critical level
+            )
+        except Exception:
+            # QGIS3 Variant
+            self.iface.messageBar().pushMessage(
+                title,
+                message,
+                level=3,  # Critical level
+            )
 
     def initGui(self):
         icon = QIcon(os.path.join(self.plugin_dir, "icons", "icon.svg"))
@@ -579,10 +591,10 @@ class THWToolboxPlugin:
             self.dock.raise_()
             return
         self.dock = QDockWidget("Taktische Zeichen", self.iface.mainWindow())
-        self.dock.setAllowedAreas(Qt.RightDockWidgetArea)
+        self.dock.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea)
         self.svg_dock_widget = SvgDock(self.plugin_dir, self._on_svg_drag_start, self._open_config_dialog)
         self.dock.setWidget(self.svg_dock_widget)
-        self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dock)
+        self.iface.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock)
 
     def _on_svg_drag_start(self, svg_path):
         self.current_svg = svg_path
@@ -620,7 +632,7 @@ class THWToolboxPlugin:
                 mem, gpkg, QgsProject.instance().transformContext(), opts
             )
 
-            if result[0] != QgsVectorFileWriter.NoError:
+            if result[0] != QgsVectorFileWriter.WriterError.NoError:
                 self._show_error_alert(
                     "Layer-Erstellungsfehler",
                     f"Konnte neuen Layer nicht erstellen: {result[1]}",
@@ -746,12 +758,12 @@ class THWToolboxPlugin:
             opts = QgsVectorFileWriter.SaveVectorOptions()
             opts.driverName = "GPKG"
             opts.layerName = lname
-            opts.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
+            opts.actionOnExistingFile = QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteFile
 
             result = QgsVectorFileWriter.writeAsVectorFormatV2(
                 mem, temp_gpkg, QgsProject.instance().transformContext(), opts
             )
-            if result[0] != QgsVectorFileWriter.NoError:
+            if result[0] != QgsVectorFileWriter.WriterError.NoError:
                 self._show_error_alert(
                     "Layer-Aktualisierungsfehler",
                     f"Konnte Layer-Felder nicht aktualisieren: {result[1]}",
@@ -837,12 +849,12 @@ class THWToolboxPlugin:
                 # Wenn weißer Hintergrund aktiviert ist, füge einen weißen Kreis als Hintergrund hinzu
                 if white_background:
                     # Erstelle einen weißen Kreis als Hintergrund (etwas größer als das Symbol)
-                    bg_layer = QgsSimpleMarkerSymbolLayer(QgsSimpleMarkerSymbolLayer.Circle, size * 1.2, 0)
+                    bg_layer = QgsSimpleMarkerSymbolLayer(QgsSimpleMarkerSymbolLayer.Shape.Circle, size * 1.2, 0)
                     bg_layer.setColor(QColor(255, 255, 255))  # Weiß
                     bg_layer.setStrokeColor(QColor(255, 255, 255))  # Weiß
                     bg_layer.setStrokeWidth(0)
                     if not scale_with_map:
-                        bg_layer.setSizeUnit(QgsUnitTypes.RenderMapUnits)
+                        bg_layer.setSizeUnit(QgsUnitTypes.RenderUnit.RenderMapUnits)
                     sym.changeSymbolLayer(0, bg_layer)
 
                 # Verwende SVG-Inhalt direkt aus dem Speicher
@@ -867,7 +879,7 @@ class THWToolboxPlugin:
                         ly = QgsSvgMarkerSymbolLayer(svg_path_feat, size, 0)
 
                 if not scale_with_map:
-                    ly.setSizeUnit(QgsUnitTypes.RenderMapUnits)
+                    ly.setSizeUnit(QgsUnitTypes.RenderUnit.RenderMapUnits)
 
                 # Rotation anwenden
                 ly.setAngle(rotation)
@@ -919,9 +931,9 @@ class THWToolboxPlugin:
 
             # Text-Format konfigurieren
             text_format = QgsTextFormat()
-            text_format.setSize(self.settings.label_font_size_mm)  # Schriftgröße (deutlich größer für bessere Lesbarkeit)
-            text_format.setSizeUnit(Qgis.RenderUnit.Millimeters)  # Einheit: Punkte
-            text_format.setColor(Qt.black)
+            text_format.setSize(self.settings.label_font_size_mm)  # Schriftgröße
+            text_format.setSizeUnit(Qgis.RenderUnit.Millimeters)
+            text_format.setColor(Qt.GlobalColor.black)
             # Verwende fette Schrift für bessere Sichtbarkeit
             font = text_format.font()
             font.setBold(True)
@@ -930,9 +942,9 @@ class THWToolboxPlugin:
             # Buffer-Einstellungen für bessere Lesbarkeit
             buffer_settings = QgsTextBufferSettings()
             buffer_settings.setEnabled(True)
-            buffer_settings.setSize(self.settings.label_buffer_size_mm)  # Buffer-Größe (größer für bessere Lesbarkeit)
-            buffer_settings.setSizeUnit(Qgis.RenderUnit.Millimeters)  # Einheit: Punkte
-            buffer_settings.setColor(Qt.white)
+            buffer_settings.setSize(self.settings.label_buffer_size_mm)  # Buffer-Größe
+            buffer_settings.setSizeUnit(Qgis.RenderUnit.Millimeters)
+            buffer_settings.setColor(Qt.GlobalColor.white)
             text_format.setBuffer(buffer_settings)
 
             label_settings.setFormat(text_format)
@@ -1117,13 +1129,25 @@ class THWToolboxPlugin:
             save_options.driverName = "GPKG"
             save_options.layerName = "taktische_zeichen"
             # Wichtiger: ganze Datei überschreiben statt nur Layer
-            save_options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
+            save_options.actionOnExistingFile = QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteFile
 
-            result = QgsVectorFileWriter.writeAsVectorFormatV2(
-                self.layer, new_gpkg, QgsProject.instance().transformContext(), save_options
-            )
+            transform_context = QgsProject.instance().transformContext()
+            try:
+                result = QgsVectorFileWriter.writeAsVectorFormatV3(
+                    self.layer, 
+                    new_gpkg, 
+                    transform_context, 
+                    save_options
+                )
+            except AttributeError: # Fallback in case <3.20
+                result = QgsVectorFileWriter.writeAsVectorFormatV3(
+                    self.layer, 
+                    new_gpkg, 
+                    transform_context, 
+                    save_options
+                )
 
-            if result[0] != QgsVectorFileWriter.NoError:
+            if result[0] != QgsVectorFileWriter.WriterError.NoError:
                 print(f"DEBUG: Writer-Export fehlgeschlagen: {result[1]} - versuche Datei-Kopie als Fallback")
                 # Fallback: Physische Datei kopieren (kann fehlschlagen, wenn gesperrt)
                 import shutil
@@ -1488,7 +1512,7 @@ class THWToolboxPlugin:
                 if hasattr(self, "move_tool"):
                     self.move_tool.moving_feature = latest_feature
                     self.move_tool.set_move_mode(True)
-                    self.canvas.setCursor(Qt.ClosedHandCursor)
+                    self.canvas.setCursor(Qt.CursorShape.ClosedHandCursor)
                 print(f"DEBUG: Feature {latest_feature.id()} automatisch ausgewählt und im Dock angezeigt")
             else:
                 print("DEBUG: Konnte das neue Feature nicht finden")
@@ -1964,7 +1988,7 @@ Hinweis:
 
     def _export_portable_package(self):
         """Öffnet einen Dialog zum Exportieren des portablen Pakets."""
-        from PyQt5.QtWidgets import QFileDialog
+        from qgis.PyQt.QtWidgets import QFileDialog
 
         # Standard-Export-Pfad
         default_path = os.path.join(os.path.expanduser("~"), "Desktop", "THW_Toolbox_Portable")

@@ -3,9 +3,9 @@
 import os
 import time
 
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import (
+from qgis.PyQt.QtCore import Qt, QTimer
+from qgis.PyQt.QtGui import QPixmap
+from qgis.PyQt.QtWidgets import (
     QApplication,
     QCheckBox,
     QDialog,
@@ -29,7 +29,7 @@ from qgis.gui import QgsMapToolIdentify
 class FeatureDock(QDockWidget):
     def __init__(self, parent=None):
         super().__init__("Marker Details", parent)
-        self.setAllowedAreas(Qt.RightDockWidgetArea)
+        self.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea)
 
         # Hauptwidget für den Inhalt
         self.content_widget = QWidget()
@@ -38,14 +38,14 @@ class FeatureDock(QDockWidget):
 
         # SVG-Anzeige (Preview des ausgewählten Markers)
         self.svg_label = QLabel()
-        self.svg_label.setAlignment(Qt.AlignCenter)
+        self.svg_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.svg_label.setMinimumHeight(200)
         self.svg_label.setStyleSheet("QLabel { border: 2px dashed #ccc; background-color: #f9f9f9; }")
         self.main_layout.addWidget(self.svg_label)
 
         # Platzhalter-Text für leeren Zustand
         self.placeholder_label = QLabel()
-        self.placeholder_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.placeholder_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self.placeholder_label.setWordWrap(True)
         self.placeholder_label.setStyleSheet("QLabel { color: #666; padding: 20px; }")
         self.main_layout.addWidget(self.placeholder_label)
@@ -54,7 +54,7 @@ class FeatureDock(QDockWidget):
         coord_layout = QHBoxLayout()
 
         self.utm32n_label = QLabel("")
-        self.utm32n_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.utm32n_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         coord_layout.addWidget(self.utm32n_label)
 
         self.btn_copy_coords = QPushButton("Kopieren")
@@ -93,11 +93,11 @@ class FeatureDock(QDockWidget):
         self.size_slider_label = QLabel("Größe:")
         slider_layout.addWidget(self.size_slider_label)
 
-        self.size_slider = QSlider(Qt.Horizontal)
+        self.size_slider = QSlider(Qt.Orientation.Horizontal)
         self.size_slider.setMinimum(10)  # Minimale Größe
         self.size_slider.setMaximum(200)  # Maximale Größe
         self.size_slider.setValue(50)  # Standardwert
-        self.size_slider.setTickPosition(QSlider.TicksBelow)
+        self.size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.size_slider.setTickInterval(20)  # Alle 20 Einheiten eine Markierung
         slider_layout.addWidget(self.size_slider)
 
@@ -112,11 +112,11 @@ class FeatureDock(QDockWidget):
         self.rotation_label = QLabel("Rotation:")
         rotation_layout.addWidget(self.rotation_label)
 
-        self.rotation_slider = QSlider(Qt.Horizontal)
+        self.rotation_slider = QSlider(Qt.Orientation.Horizontal)
         self.rotation_slider.setMinimum(0)  # 0 Grad
         self.rotation_slider.setMaximum(360)  # 360 Grad
         self.rotation_slider.setValue(0)  # Standardwert
-        self.rotation_slider.setTickPosition(QSlider.TicksBelow)
+        self.rotation_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.rotation_slider.setTickInterval(45)  # Alle 45 Grad eine Markierung
         rotation_layout.addWidget(self.rotation_slider)
 
@@ -139,7 +139,7 @@ class FeatureDock(QDockWidget):
         self.main_layout.addLayout(self.button_layout)
 
         # Spacer am Ende hinzufügen, um alles nach oben auszurichten
-        spacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        spacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
         self.main_layout.addItem(spacer)
 
         # Tracker für letzte Preview-Datei
@@ -239,7 +239,7 @@ class FeatureDock(QDockWidget):
                 if temp_svg and os.path.exists(temp_svg):
                     print(f"DEBUG: Temporäre SVG-Datei erstellt: {temp_svg}")
                     # Versuche zuerst mit QIcon (bessere SVG-Unterstützung)
-                    from PyQt5.QtGui import QIcon
+                    from qgis.PyQt.QtGui import QIcon
 
                     icon = QIcon(temp_svg)
                     pixmap = icon.pixmap(180, 180)
@@ -263,7 +263,7 @@ class FeatureDock(QDockWidget):
                     if os.path.exists(absolute_path):
                         print("DEBUG: Absoluter Pfad existiert, lade SVG")
                         # Versuche zuerst mit QIcon (bessere SVG-Unterstützung)
-                        from PyQt5.QtGui import QIcon
+                        from qgis.PyQt.QtGui import QIcon
 
                         icon = QIcon(absolute_path)
                         pixmap = icon.pixmap(180, 180)
@@ -280,7 +280,7 @@ class FeatureDock(QDockWidget):
                 else:
                     print("DEBUG: Pfad ist bereits absolut")
                     # Versuche zuerst mit QIcon (bessere SVG-Unterstützung)
-                    from PyQt5.QtGui import QIcon
+                    from qgis.PyQt.QtGui import QIcon
 
                     icon = QIcon(svg_path_feat)
                     pixmap = icon.pixmap(180, 180)
@@ -295,7 +295,7 @@ class FeatureDock(QDockWidget):
             if pixmap is not None and not pixmap.isNull():
                 print("DEBUG: Pixmap erfolgreich geladen, skaliere für Vorschau")
                 # Skaliere das Bild für die Vorschau
-                scaled_pixmap = pixmap.scaled(180, 180, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                scaled_pixmap = pixmap.scaled(180, 180, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
                 self.svg_label.setPixmap(scaled_pixmap)
                 self.svg_label.setStyleSheet("QLabel { border: 2px solid #2E86AB; background-color: white; }")
                 print("DEBUG: SVG-Preview erfolgreich angezeigt")
@@ -312,7 +312,7 @@ class FeatureDock(QDockWidget):
             # Versuche alternative SVG-Loading-Methoden
             try:
                 # Versuche mit QIcon (funktioniert oft besser mit SVG)
-                from PyQt5.QtGui import QIcon
+                from qgis.PyQt.QtGui import QIcon
 
                 svg_path_feat = feat.attribute("svg_path")
                 if not os.path.isabs(svg_path_feat):
@@ -510,7 +510,7 @@ class FeatureDock(QDockWidget):
         self.layer_manager.resize_feature(self.feat.id(), value)
 
     def on_scale_toggle(self, state):
-        self.layer_manager.toggle_scale(self.feat.id(), state == Qt.Checked)
+        self.layer_manager.toggle_scale(self.feat.id(), state == Qt.CheckState.Checked)
 
     def on_spinbox_changed(self, value):
         """Synchronisiert den Schieberegler mit der SpinBox"""
@@ -542,7 +542,7 @@ class FeatureDock(QDockWidget):
         if not hasattr(self, "feat") or not self.feat:
             return
 
-        show_label = state == Qt.Checked
+        show_label = state == Qt.CheckState.Checked
         self.layer_manager.toggle_label_visibility(self.feat.id(), show_label)
 
     def on_white_background_toggle(self, state):
@@ -550,7 +550,7 @@ class FeatureDock(QDockWidget):
         if not hasattr(self, "feat") or not self.feat:
             return
 
-        white_background = state == Qt.Checked
+        white_background = state == Qt.CheckState.Checked
         self.layer_manager.toggle_white_background(self.feat.id(), white_background)
 
     def on_rotation_change(self, value):
@@ -577,7 +577,7 @@ class FeatureDock(QDockWidget):
             self.layer_manager.move_tool.set_move_mode(False)
             # Cursor zurücksetzen
             if hasattr(self.layer_manager, "canvas"):
-                self.layer_manager.canvas.setCursor(Qt.ArrowCursor)
+                self.layer_manager.canvas.setCursor(Qt.CursorShape.ArrowCursor)
 
         # Zeige Platzhalter wenn Dock versteckt wird
         self.show_placeholder()
@@ -599,24 +599,24 @@ class IdentifyTool(QgsMapToolIdentify):
         self.canvas = canvas
         self.layer_manager = layer_manager
         self.layer = layer_manager.layer
-        self.setCursor(Qt.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
 
         # Dock-Widget erstellen
         self.feature_dock = FeatureDock(canvas.parent())
-        canvas.parent().addDockWidget(Qt.RightDockWidgetArea, self.feature_dock)
+        canvas.parent().addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.feature_dock)
         # Zeige Dock mit Platzhalter initial
         self.feature_dock.show()
         self.feature_dock.show_placeholder()
 
     def canvasReleaseEvent(self, event):
         # nur Linksklick
-        if event.button() != Qt.LeftButton:
+        if event.button() != Qt.MouseButton.LeftButton:
             return
 
         # Identifiziere erstes Feature unter Maus mit größerem Suchradius
         search_radius = 10  # Suchradius in Pixeln
         results = self.identify(
-            event.x(), event.y(), [self.layer], QgsMapToolIdentify.TopDownStopAtFirst, search_radius
+            event.x(), event.y(), [self.layer], QgsMapToolIdentify.IdentifyMode.TopDownStopAtFirst, search_radius
         )
         if not results:
             self.feature_dock.show_placeholder()
@@ -633,4 +633,4 @@ class IdentifyTool(QgsMapToolIdentify):
         if hasattr(self.layer_manager, "move_tool"):
             self.layer_manager.move_tool.set_move_mode(True)
             # Cursor auf ClosedHand ändern, um anzuzeigen, dass das Feature verschiebbar ist
-            self.canvas.setCursor(Qt.ClosedHandCursor)
+            self.canvas.setCursor(Qt.CursorShape.ClosedHandCursor)

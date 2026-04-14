@@ -2,29 +2,6 @@ import os
 import time
 import uuid
 
-from qgis.PyQt.QtCore import QEvent, QObject, QSize, Qt, QVariant
-from qgis.PyQt.QtGui import QColor, QDrag, QIcon, QPixmap
-from qgis.PyQt.QtWidgets import (
-    QAction,
-    QCheckBox,
-    QComboBox,
-    QDialog,
-    QDialogButtonBox,
-    QDockWidget,
-    QFormLayout,
-    QGroupBox,
-    QHBoxLayout,
-    QInputDialog,
-    QLabel,
-    QListWidget,
-    QListWidgetItem,
-    QMessageBox,
-    QPushButton,
-    QSlider,
-    QSpinBox,
-    QVBoxLayout,
-    QWidget,
-)
 from qgis.core import (
     Qgis,
     QgsCategorizedSymbolRenderer,
@@ -51,6 +28,29 @@ from qgis.core import (
     QgsVectorLayerSimpleLabeling,
 )
 from qgis.gui import QgsMapTool, QgsMapToolIdentify
+from qgis.PyQt.QtCore import QEvent, QObject, QSize, Qt, QVariant
+from qgis.PyQt.QtGui import QColor, QDrag, QIcon, QPixmap
+from qgis.PyQt.QtWidgets import (
+    QAction,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QDockWidget,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPushButton,
+    QSlider,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
+)
 from qgis.utils import iface
 
 from .identifytool import FeatureDock
@@ -318,7 +318,6 @@ class MoveTool(QgsMapTool):
 
 
 class THWToolboxPlugin:
-
     def __init__(self, iface):
         self.iface = iface
         self.canvas = iface.mapCanvas()
@@ -1007,9 +1006,9 @@ class THWToolboxPlugin:
                         label_settings.quadOffset = QgsPalLayerSettings.Bottom
                     else:
                         # last resort: standard bottom-middle index
-                        label_settings.quadOffset = QgsPalLayerSettings.BottomMiddle if hasattr(
-                            QgsPalLayerSettings, "BottomMiddle"
-                        ) else 0
+                        label_settings.quadOffset = (
+                            QgsPalLayerSettings.BottomMiddle if hasattr(QgsPalLayerSettings, "BottomMiddle") else 0
+                        )
             except Exception as e:
                 print(f"DEBUG: Position festsetzen fehlgeschlagen: {e}")
 
@@ -1456,7 +1455,9 @@ class THWToolboxPlugin:
         f.setAttribute("svg_path", relative_path)  # Relativer Pfad
         f.setAttribute("svg_content", svg_content)  # SVG-Inhalt speichern
         f.setAttribute("size", icon_size)  # Adaptive Größe basierend auf Zoom-Faktor
-        f.setAttribute("scale_with_map", self.settings.new_icon_scaling_with_map)  # Standardmäßig nicht mit Karte skalieren
+        f.setAttribute(
+            "scale_with_map", self.settings.new_icon_scaling_with_map
+        )  # Standardmäßig nicht mit Karte skalieren
         f.setAttribute("unique_id", str(uuid.uuid4()))  # Eindeutige ID generieren
         f.setAttribute("label", default_label)  # Standard-Label aus SVG-Namen
         f.setAttribute("show_label", False)  # Label standardmäßig nicht anzeigen
@@ -1638,8 +1639,6 @@ class THWToolboxPlugin:
         # Layer-Referenzen in anderen Klassen aktualisieren
         self._update_tool_references()
 
-    
-
     def _open_config_dialog(self):
         dialog = QDialog(self.iface.mainWindow())
         dialog.setWindowTitle("THW Toolbox Einstellungen")
@@ -1660,20 +1659,22 @@ class THWToolboxPlugin:
         default_icon_form.addRow("Neue Zeichen mit fixer Standardgröße", cb_fixed_size)
 
         # Default Size (only active if cb_fixed_size is enabled)
-        spin_icon_size =QSpinBox()
+        spin_icon_size = QSpinBox()
         spin_icon_size.setMinimum(10)
         spin_icon_size.setMaximum(200)
         spin_icon_size.setValue(self.settings.new_icon_size)
         spin_icon_size.setSingleStep(1)  # Schrittweite
-        default_icon_form.addRow("Fixe Standardgröße für neue Zeichen",spin_icon_size)
+        default_icon_form.addRow("Fixe Standardgröße für neue Zeichen", spin_icon_size)
+
         def update_spin_icon_size(checked):
             spin_icon_size.setEnabled(checked)
+
         cb_fixed_size.stateChanged.connect(update_spin_icon_size)
         update_spin_icon_size(cb_fixed_size.isChecked())
 
         # Coordinate System of Label
         dropdown_crs = QComboBox()
-        dropdown_crs.addItems(["MGRS","UTM"])
+        dropdown_crs.addItems(["MGRS", "UTM"])
         current_index = dropdown_crs.findText(self.settings.new_icon_crs)
         if current_index >= 0:
             dropdown_crs.setCurrentIndex(current_index)
@@ -1710,11 +1711,8 @@ class THWToolboxPlugin:
         label_settings_box.setLayout(label_settings_form)
         layout.addWidget(label_settings_box)
 
-
         # Bestätigen / Abbrechen
-        button_box = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
-        )
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         layout.addWidget(button_box)
         button_box.accepted.connect(dialog.accept)
         button_box.rejected.connect(dialog.reject)
@@ -1732,7 +1730,6 @@ class THWToolboxPlugin:
 
             self.settings.save_settings(QgsProject.instance())
             self._init_renderer(self.layer)
-
 
     def resize_feature(self, fid, size):
         if not self.layer:

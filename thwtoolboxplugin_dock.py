@@ -9,9 +9,9 @@ from qgis.PyQt.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QPushButton,
     QTreeWidget,
     QTreeWidgetItem,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -62,7 +62,6 @@ class SvgDock(QWidget):
         self.btn_config = QPushButton("Einstellungen")
         self.btn_config.clicked.connect(settings_callback)
         layout.addWidget(self.btn_config)
-
 
     def get_cached_icon(self, path):
         if path not in self.icon_cache:

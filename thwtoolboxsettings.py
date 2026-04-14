@@ -1,4 +1,3 @@
-
 class THWToolboxSettings:
     # Default values for settings
     NEW_ICON_SCALING_WITH_MAP_DEFAULT = False
@@ -11,7 +10,6 @@ class THWToolboxSettings:
 
     # Save-File values
     PLUGIN_NAME = "taktischezeichen"
-
 
     def __init__(self):
         self._new_icon_scaling_with_map = self.NEW_ICON_SCALING_WITH_MAP_DEFAULT
@@ -26,6 +24,7 @@ class THWToolboxSettings:
     @property
     def new_icon_scaling_with_map(self) -> bool:
         return self._new_icon_scaling_with_map
+
     @new_icon_scaling_with_map.setter
     def new_icon_scaling_with_map(self, value):
         if not isinstance(value, bool):
@@ -35,6 +34,7 @@ class THWToolboxSettings:
     @property
     def new_icon_fixed_size(self) -> bool:
         return self._new_icon_fixed_size
+
     @new_icon_fixed_size.setter
     def new_icon_fixed_size(self, value):
         if not isinstance(value, bool):
@@ -44,6 +44,7 @@ class THWToolboxSettings:
     @property
     def new_icon_size(self) -> int:
         return self._new_icon_size
+
     @new_icon_size.setter
     def new_icon_size(self, value):
         if not isinstance(value, int) or value <= 0:
@@ -53,6 +54,7 @@ class THWToolboxSettings:
     @property
     def new_icon_crs(self) -> str:
         return self._new_icon_crs
+
     @new_icon_crs.setter
     def new_icon_crs(self, value):
         if not isinstance(value, str):
@@ -62,6 +64,7 @@ class THWToolboxSettings:
     @property
     def label_enable(self) -> bool:
         return self._label_enable
+
     @label_enable.setter
     def label_enable(self, value):
         if not isinstance(value, bool):
@@ -71,6 +74,7 @@ class THWToolboxSettings:
     @property
     def label_font_size_mm(self) -> int:
         return self._label_font_size_mm
+
     @label_font_size_mm.setter
     def label_font_size_mm(self, value):
         if not isinstance(value, (int, float)) or value <= 0:
@@ -80,6 +84,7 @@ class THWToolboxSettings:
     @property
     def label_buffer_size_mm(self) -> int:
         return self._label_buffer_size_mm
+
     @label_buffer_size_mm.setter
     def label_buffer_size_mm(self, value):
         if not isinstance(value, (int, float)) or value <= 0:
@@ -87,16 +92,15 @@ class THWToolboxSettings:
         self._label_buffer_size_mm = int(value)
 
     def load_settings(self, proj):
-        """ Loads settings automatically from the defined private parameters
-        """
+        """Loads settings automatically from the defined private parameters"""
         for attr_name in dir(self):
-            if attr_name.startswith('_') and not attr_name.startswith('__'):
+            if attr_name.startswith("_") and not attr_name.startswith("__"):
                 private_field = attr_name
                 config_key = attr_name[1:]  # '_new_icon_scaling_with_map' → 'new_icon_scaling_with_map'
 
                 # logic for config key transformations
-                if private_field.endswith('_mm'):
-                    config_key = config_key.replace('_mm', '_um')
+                if private_field.endswith("_mm"):
+                    config_key = config_key.replace("_mm", "_um")
                     default_value = getattr(self, f"{private_field[1:-3]}_DEFAULT_UM".upper())
                     loaded_value, ok = proj.readNumEntry(self.PLUGIN_NAME, config_key, default_value)
                     final_value = (loaded_value if ok else default_value) / 1000.0
@@ -119,22 +123,20 @@ class THWToolboxSettings:
 
         proj.setDirty(True)
 
-
     def save_settings(self, proj):
-        """ Saves all private parameters into the project
-        """
+        """Saves all private parameters into the project"""
 
         for attr_name in dir(self):
-            if attr_name.startswith('_') and not attr_name.startswith('__'):
+            if attr_name.startswith("_") and not attr_name.startswith("__"):
                 value = getattr(self, attr_name)
-                config_key = attr_name[1:] # Do not use the starting _ for key name
+                config_key = attr_name[1:]  # Do not use the starting _ for key name
 
                 if isinstance(value, bool):
                     proj.writeEntryBool(self.PLUGIN_NAME, config_key, value)
                 elif isinstance(value, str):
                     proj.writeEntry(self.PLUGIN_NAME, config_key, value)
-                elif attr_name.endswith('_mm'):
-                    config_key = config_key.replace('_mm', '_um')
+                elif attr_name.endswith("_mm"):
+                    config_key = config_key.replace("_mm", "_um")
                     proj.writeEntry(self.PLUGIN_NAME, config_key, int(value * 1000))
                 else:
                     proj.writeEntry(self.PLUGIN_NAME, config_key, int(value))

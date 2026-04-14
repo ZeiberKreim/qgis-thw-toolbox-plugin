@@ -73,7 +73,6 @@ class FeatureDock(QDockWidget):
         label_layout.addWidget(self.cb_enable_label)
         self.main_layout.addLayout(label_layout)
 
-
         # Größen-SpinBox und Schieberegler
         size_layout = QHBoxLayout()
         self.size_label = QLabel("Größe:")

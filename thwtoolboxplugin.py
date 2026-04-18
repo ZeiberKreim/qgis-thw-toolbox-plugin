@@ -1924,10 +1924,6 @@ class THWToolboxPlugin:
                 "thwtoolboxplugin.py",
                 "thwtoolboxplugin_dock.py",
                 "identifytool.py",
-                "dock_manager.py",
-                "dragmaptool.py",
-                "layer_manager.py",
-                "mapcanvas_dropevent_filter.py",
             ]
 
             for py_file in python_files:

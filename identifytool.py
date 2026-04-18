@@ -25,6 +25,8 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+from .origin_point_widget import OriginPointWidget
+
 
 class FeatureDock(QDockWidget):
     def __init__(self, parent=None):
@@ -125,6 +127,15 @@ class FeatureDock(QDockWidget):
 
         self.main_layout.addLayout(rotation_layout)
 
+        # Ankerpunkt (Origin Point)
+        origin_layout = QHBoxLayout()
+        self.origin_label = QLabel("Ankerpunkt:")
+        origin_layout.addWidget(self.origin_label)
+        self.origin_widget = OriginPointWidget()
+        origin_layout.addWidget(self.origin_widget)
+        origin_layout.addStretch()
+        self.main_layout.addLayout(origin_layout)
+
         # Weißer Hintergrund-Checkbox
         self.white_background_checkbox = QCheckBox("Weißer Hintergrund")
         self.main_layout.addWidget(self.white_background_checkbox)
@@ -180,6 +191,8 @@ class FeatureDock(QDockWidget):
         self.rotation_label.hide()
         self.rotation_slider.hide()
         self.rotation_value_label.hide()
+        self.origin_label.hide()
+        self.origin_widget.hide()
         self.label_textfield_label.hide()
         self.label_textfield.hide()
         self.cb_enable_label.hide()
@@ -362,6 +375,8 @@ class FeatureDock(QDockWidget):
         self.rotation_label.show()
         self.rotation_slider.show()
         self.rotation_value_label.show()
+        self.origin_label.show()
+        self.origin_widget.show()
         # Label-Funktion vorerst ausgeblendet (Code bleibt für später erhalten)
         self.label_textfield_label.show()
         self.label_textfield.show()
@@ -406,6 +421,19 @@ class FeatureDock(QDockWidget):
         self.rotation_slider.setValue(int(rotation))
         self.rotation_value_label.setText(f"{int(rotation)}°")
 
+        # Ankerpunkt setzen
+        try:
+            origin_x = feat.attribute("origin_x")
+            origin_y = feat.attribute("origin_y")
+            if origin_x is None:
+                origin_x = 1
+            if origin_y is None:
+                origin_y = 1
+        except:
+            origin_x = 1
+            origin_y = 1
+        self.origin_widget.set_origin(int(origin_x), int(origin_y))
+
         # Buttons, SpinBox, Schieberegler und Checkbox neu verbinden
         self.btn_delete.clicked.disconnect() if self.btn_delete.receivers(self.btn_delete.clicked) > 0 else None
         self.btn_copy_coords.clicked.disconnect() if self.btn_copy_coords.receivers(
@@ -435,6 +463,10 @@ class FeatureDock(QDockWidget):
         self.rotation_slider.sliderReleased.disconnect() if self.rotation_slider.receivers(
             self.rotation_slider.sliderReleased
         ) > 0 else None
+        try:
+            self.origin_widget.origin_changed.disconnect()
+        except TypeError:
+            pass
 
         self.btn_delete.clicked.connect(self.on_delete)
         self.btn_copy_coords.clicked.connect(self.on_copy_coords)
@@ -446,6 +478,7 @@ class FeatureDock(QDockWidget):
         self.white_background_checkbox.stateChanged.connect(self.on_white_background_toggle)
         self.rotation_slider.valueChanged.connect(self.on_rotation_change)
         self.rotation_slider.sliderReleased.connect(self.on_rotation_slider_released)
+        self.origin_widget.origin_changed.connect(self.on_origin_changed)
 
         # Synchronisation zwischen SpinBox und Schieberegler
         self.size_spinbox.valueChanged.connect(self.on_spinbox_changed)
@@ -562,15 +595,19 @@ class FeatureDock(QDockWidget):
         # Aktualisiere das Label mit dem aktuellen Wert
         self.rotation_value_label.setText(f"{value}°")
 
-        # Rotation im Feature aktualisieren (visuell sofort, ohne Commit)
+        # Rotation im Feature aktualisieren
         self.layer_manager.rotate_feature(self.feat.id(), float(value))
 
     def on_rotation_slider_released(self):
         """Wird aufgerufen, wenn der Rotationsschieberegler losgelassen wird"""
-        # Committe die Änderungen, wenn der Benutzer fertig ist
-        if hasattr(self, "layer_manager") and self.layer_manager.layer:
-            if self.layer_manager.layer.isEditable():
-                self.layer_manager.layer.commitChanges()
+        pass
+
+    def on_origin_changed(self, origin_x, origin_y):
+        """Wird aufgerufen, wenn der Ankerpunkt geaendert wird"""
+        if not hasattr(self, "feat") or not self.feat:
+            return
+
+        self.layer_manager.update_origin(self.feat.id(), origin_x, origin_y)
 
     def hideEvent(self, event):
         # Verschieben-Modus deaktivieren wenn Dock geschlossen wird

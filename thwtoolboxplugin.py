@@ -11,6 +11,7 @@ from qgis.core import (
     QgsGeometry,
     QgsMapLayer,
     QgsMarkerSymbol,
+    QgsMarkerSymbolLayer,
     QgsPalLayerSettings,
     QgsPointXY,
     QgsProject,
@@ -290,10 +291,10 @@ class MoveTool(QgsMapTool):
             # Kein Feature gefunden - deselektiere aktuelles Feature
             self.moving_feature = None
             self.set_move_mode(False)
-            # Verstecke Feature-Dock und zeige Platzhalter
+            # Zeige Platzhalter im Feature-Dock
             if hasattr(self.layer_manager, "ident_tool") and hasattr(self.layer_manager.ident_tool, "feature_dock"):
                 self.layer_manager.ident_tool.feature_dock.show_placeholder()
-                self.layer_manager.ident_tool.feature_dock.hide()
+                self.layer_manager.ident_tool.feature_dock.show()
             # Starte Panning
             self.pan_start = event.pos()
             self.is_panning = True
@@ -846,6 +847,16 @@ class THWToolboxPlugin:
                 rotation = (
                     feat.attribute("rotation") if "rotation" in [field.name() for field in layer.fields()] else 0.0
                 )
+                origin_x = (
+                    feat.attribute("origin_x") if "origin_x" in [field.name() for field in layer.fields()] else 1
+                )
+                origin_y = (
+                    feat.attribute("origin_y") if "origin_y" in [field.name() for field in layer.fields()] else 1
+                )
+                if origin_x is None:
+                    origin_x = 1
+                if origin_y is None:
+                    origin_y = 1
                 sym = QgsMarkerSymbol.createSimple({})
 
                 # Wenn weißer Hintergrund aktiviert ist, füge einen weißen Kreis als Hintergrund hinzu
@@ -885,6 +896,25 @@ class THWToolboxPlugin:
 
                 # Rotation anwenden
                 ly.setAngle(rotation)
+
+                # Ankerpunkt anwenden
+                h_anchor_map = {
+                    0: QgsMarkerSymbolLayer.HorizontalAnchorPoint.Left,
+                    1: QgsMarkerSymbolLayer.HorizontalAnchorPoint.HCenter,
+                    2: QgsMarkerSymbolLayer.HorizontalAnchorPoint.Right,
+                }
+                v_anchor_map = {
+                    0: QgsMarkerSymbolLayer.VerticalAnchorPoint.Top,
+                    1: QgsMarkerSymbolLayer.VerticalAnchorPoint.VCenter,
+                    2: QgsMarkerSymbolLayer.VerticalAnchorPoint.Bottom,
+                }
+                ly.setHorizontalAnchorPoint(h_anchor_map.get(origin_x, QgsMarkerSymbolLayer.HorizontalAnchorPoint.HCenter))
+                ly.setVerticalAnchorPoint(v_anchor_map.get(origin_y, QgsMarkerSymbolLayer.VerticalAnchorPoint.VCenter))
+
+                # Auch den Hintergrund-Layer anpassen, falls vorhanden
+                if white_background:
+                    bg_layer.setHorizontalAnchorPoint(h_anchor_map.get(origin_x, QgsMarkerSymbolLayer.HorizontalAnchorPoint.HCenter))
+                    bg_layer.setVerticalAnchorPoint(v_anchor_map.get(origin_y, QgsMarkerSymbolLayer.VerticalAnchorPoint.VCenter))
 
                 # SVG-Layer hinzufügen (als zusätzliches Layer, wenn Hintergrund vorhanden ist)
                 if white_background:
@@ -1372,6 +1402,8 @@ class THWToolboxPlugin:
             "show_label": QVARIANT_BOOL,  # Ob das Label angezeigt werden soll
             "white_background": QVARIANT_BOOL,  # Ob ein weißer Hintergrund angezeigt werden soll
             "rotation": QVariant.Double,  # Rotationswinkel in Grad
+            "origin_x": QVariant.Int,  # Ankerpunkt X (0=links, 1=mitte, 2=rechts)
+            "origin_y": QVariant.Int,  # Ankerpunkt Y (0=oben, 1=mitte, 2=unten)
         }
 
         existing_fields = {field.name(): field.type() for field in self.layer.fields()}
@@ -1463,6 +1495,8 @@ class THWToolboxPlugin:
         f.setAttribute("show_label", False)  # Label standardmäßig nicht anzeigen
         f.setAttribute("white_background", False)  # Weißer Hintergrund standardmäßig nicht aktiviert
         f.setAttribute("rotation", 0.0)  # Rotation standardmäßig 0 Grad
+        f.setAttribute("origin_x", 1)  # Ankerpunkt X standardmäßig Mitte
+        f.setAttribute("origin_y", 1)  # Ankerpunkt Y standardmäßig Mitte
 
         # Feature zum Layer hinzufügen
         print("DEBUG: Füge Feature zum Layer hinzu")
@@ -1712,13 +1746,13 @@ class THWToolboxPlugin:
         layout.addWidget(label_settings_box)
 
         # Bestätigen / Abbrechen
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         layout.addWidget(button_box)
         button_box.accepted.connect(dialog.accept)
         button_box.rejected.connect(dialog.reject)
 
-        result = dialog.exec_()
-        if result == QDialog.Accepted:
+        result = dialog.exec()
+        if result == QDialog.DialogCode.Accepted:
             self.settings.new_icon_scaling_with_map = cb_scale.isChecked()
             self.settings.new_icon_fixed_size = cb_fixed_size.isChecked()
             self.settings.new_icon_size = spin_icon_size.value()
@@ -1830,44 +1864,35 @@ class THWToolboxPlugin:
         if not self.layer:
             return
 
-        # Rotation direkt im Renderer aktualisieren für flüssige Echtzeit-Updates
-        # Dies ist viel schneller als den gesamten Renderer neu zu erstellen
-        renderer = self.layer.renderer()
-        if renderer and isinstance(renderer, QgsCategorizedSymbolRenderer):
-            # Hole das Feature, um die unique_id zu bekommen
-            feat = self.layer.getFeature(fid)
-            if feat.isValid():
-                unique_id = (
-                    feat.attribute("unique_id")
-                    if "unique_id" in [field.name() for field in self.layer.fields()]
-                    else str(fid)
-                )
-                # Finde die Kategorie für dieses Feature
-                for cat in renderer.categories():
-                    if cat.value() == unique_id:
-                        # Aktualisiere die Rotation im Symbol
-                        symbol = cat.symbol()
-                        if symbol:
-                            # Durchlaufe alle Symbol-Layer und aktualisiere die Rotation
-                            for i in range(symbol.symbolLayerCount()):
-                                layer = symbol.symbolLayer(i)
-                                if isinstance(layer, QgsSvgMarkerSymbolLayer):
-                                    layer.setAngle(rotation)
-                                elif isinstance(layer, QgsSimpleMarkerSymbolLayer):
-                                    # Für Hintergrund-Layer keine Rotation ändern
-                                    pass
-                        break
-
-        # Aktualisiere auch den Wert im Feature (für Persistenz)
         idx = self.layer.fields().indexFromName("rotation")
         if not self.layer.isEditable():
             self.layer.startEditing()
         self.layer.changeAttributeValue(fid, idx, rotation)
-        # Committe nicht bei jedem Update, nur visuell aktualisieren
-        # Das Commit erfolgt automatisch oder bei Bedarf
-
-        # Canvas sofort aktualisieren für flüssige Anzeige
+        self.layer.commitChanges()
         self.layer.triggerRepaint()
+
+        # Renderer aktualisieren
+        self._update_renderer()
+
+    def update_origin(self, fid, origin_x, origin_y):
+        """Aktualisiert den Ankerpunkt eines Features"""
+        if not self.layer:
+            return
+
+        idx_x = self.layer.fields().indexFromName("origin_x")
+        idx_y = self.layer.fields().indexFromName("origin_y")
+        if idx_x < 0 or idx_y < 0:
+            return
+
+        if not self.layer.isEditable():
+            self.layer.startEditing()
+        self.layer.changeAttributeValue(fid, idx_x, origin_x)
+        self.layer.changeAttributeValue(fid, idx_y, origin_y)
+        self.layer.commitChanges()
+        self.layer.triggerRepaint()
+
+        # Renderer aktualisieren
+        self._update_renderer()
 
     def export_portable_package(self, export_path):
         """Exportiert das Plugin als portables Paket.

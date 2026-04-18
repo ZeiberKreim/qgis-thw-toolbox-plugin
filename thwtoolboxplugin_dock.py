@@ -3,12 +3,9 @@ import os
 import re
 
 from qgis.PyQt.QtCore import QMimeData, QSize, Qt
-from qgis.PyQt.QtGui import QDrag, QIcon, QPixmap
+from qgis.PyQt.QtGui import QDrag, QFont, QIcon, QPixmap
 from qgis.PyQt.QtWidgets import (
-    QLabel,
     QLineEdit,
-    QListWidget,
-    QListWidgetItem,
     QPushButton,
     QTreeWidget,
     QTreeWidgetItem,
@@ -46,10 +43,28 @@ class SvgDock(QWidget):
         self.treeWidget.setHeaderLabel("Taktische Zeichen")
         self.treeWidget.setDragEnabled(True)
         self.treeWidget.setIconSize(QSize(48, 48))
-        self.treeWidget.setIndentation(20)
+        self.treeWidget.setIndentation(16)
         self.treeWidget.setColumnCount(1)
         # Sortierung wird manuell mit natürlicher Sortierung durchgeführt
         self.treeWidget.setSortingEnabled(False)
+        self.treeWidget.setRootIsDecorated(True)
+        self.treeWidget.setStyleSheet("""
+            QTreeWidget {
+                border: none;
+                outline: none;
+            }
+            QTreeWidget::item {
+                padding: 2px 0px;
+            }
+            QTreeWidget::branch:has-children:!has-siblings:closed,
+            QTreeWidget::branch:closed:has-children:has-siblings {
+                border-image: none;
+            }
+            QTreeWidget::branch:open:has-children:!has-siblings,
+            QTreeWidget::branch:open:has-children:has-siblings {
+                border-image: none;
+            }
+        """)
 
         layout.addWidget(self.treeWidget)
 
@@ -62,6 +77,12 @@ class SvgDock(QWidget):
         self.btn_config = QPushButton("Einstellungen")
         self.btn_config.clicked.connect(settings_callback)
         layout.addWidget(self.btn_config)
+
+    def _set_category_font(self, item):
+        """Setzt die Schrift für Kategorie-Einträge (fett) zur visuellen Unterscheidung."""
+        font = item.font(0)
+        font.setBold(True)
+        item.setFont(0, font)
 
     def get_cached_icon(self, path):
         if path not in self.icon_cache:
@@ -93,9 +114,14 @@ class SvgDock(QWidget):
                 "Personen": "Personen",
                 "Schäden": "Schäden",
                 "Schadenskonten": {
-                    "gelb": "Schadenskonten/gelb",
-                    "rot": "Schadenskonten/rot",
-                    "weiß": "Schadenskonten/weiß",
+                    "gelb": {"folder": "Schadenskonten/gelb", "filter": "Schadenskonto"},
+                    "rot": {"folder": "Schadenskonten/rot", "filter": "Schadenskonto"},
+                    "weiß": {"folder": "Schadenskonten/weiß", "filter": "Schadenskonto"},
+                },
+                "Schadensstellen": {
+                    "gelb": {"folder": "Schadenskonten/gelb", "filter": "Schadensstelle"},
+                    "rot": {"folder": "Schadenskonten/rot", "filter": "Schadensstelle"},
+                    "weiß": {"folder": "Schadenskonten/weiß", "filter": "Schadensstelle"},
                 },
                 "Sonstiges": "Sonstiges",
             },
@@ -159,7 +185,7 @@ class SvgDock(QWidget):
         for category, subcategories in categories.items():
             category_item = QTreeWidgetItem(self.treeWidget)
             category_item.setText(0, category)
-            category_item.setIcon(0, QIcon.fromTheme("folder"))
+            self._set_category_font(category_item)
 
             # Füge Unterkategorien hinzu
             if isinstance(subcategories, dict):
@@ -168,19 +194,26 @@ class SvgDock(QWidget):
                 for subcategory, folder_name in sorted_subcategories:
                     subcategory_item = QTreeWidgetItem(category_item)
                     subcategory_item.setText(0, subcategory)
-                    subcategory_item.setIcon(0, QIcon.fromTheme("folder"))
 
                     if isinstance(folder_name, dict):  # Für verschachtelte Kategorien
                         # Setze den Basis-Ordner-Namen als UserRole (z.B. "Schadenskonten")
                         # Extrahiere den Basis-Ordner-Namen aus dem ersten Unterordner-Pfad
-                        first_subfolder = list(folder_name.values())[0] if folder_name else ""
-                        base_folder = first_subfolder.split("/")[0] if "/" in first_subfolder else subcategory
+                        first_value = list(folder_name.values())[0] if folder_name else ""
+                        if isinstance(first_value, dict):
+                            base_folder = first_value["folder"].split("/")[0]
+                        elif isinstance(first_value, str):
+                            base_folder = first_value.split("/")[0] if "/" in first_value else subcategory
+                        else:
+                            base_folder = subcategory
                         subcategory_item.setData(0, Qt.ItemDataRole.UserRole, base_folder)
                         for subsubcategory, actual_folder in folder_name.items():
                             subsubcategory_item = QTreeWidgetItem(subcategory_item)
                             subsubcategory_item.setText(0, subsubcategory)
-                            subsubcategory_item.setIcon(0, QIcon.fromTheme("folder"))
-                            subsubcategory_item.setData(0, Qt.ItemDataRole.UserRole, actual_folder)
+                            if isinstance(actual_folder, dict):
+                                subsubcategory_item.setData(0, Qt.ItemDataRole.UserRole, actual_folder["folder"])
+                                subsubcategory_item.setData(0, Qt.ItemDataRole.UserRole + 1, actual_folder["filter"])
+                            else:
+                                subsubcategory_item.setData(0, Qt.ItemDataRole.UserRole, actual_folder)
                             placeholder = QTreeWidgetItem(subsubcategory_item)
                             placeholder.setText(0, "Laden...")
                     else:  # Für direkte Kategorien
@@ -257,7 +290,6 @@ class SvgDock(QWidget):
                     for subsubcategory, folder_name in sorted_subfolders:
                         subsubcategory_item = QTreeWidgetItem(item)
                         subsubcategory_item.setText(0, subsubcategory)
-                        subsubcategory_item.setIcon(0, QIcon.fromTheme("folder"))
                         subsubcategory_item.setData(0, Qt.ItemDataRole.UserRole, folder_name)
                         placeholder = QTreeWidgetItem(subsubcategory_item)
                         placeholder.setText(0, "Laden...")
@@ -291,7 +323,6 @@ class SvgDock(QWidget):
         for subcategory, subfolders in sorted_categories:
             subcategory_item = QTreeWidgetItem(category_item)
             subcategory_item.setText(0, subcategory)
-            subcategory_item.setIcon(0, QIcon.fromTheme("folder"))
             # Setze UserRole auf None, da dies eine verschachtelte Struktur ist
             # Die Unterordner werden beim Erweitern geladen
             subcategory_item.setData(0, Qt.ItemDataRole.UserRole, None)
@@ -324,17 +355,24 @@ class SvgDock(QWidget):
                     # Erstelle einen Unterordner-Eintrag für die verschachtelte Struktur
                     subfolder_item = QTreeWidgetItem(category_item)
                     subfolder_item.setText(0, subfolder)
-                    subfolder_item.setIcon(0, QIcon.fromTheme("folder"))
                     # Extrahiere den Basis-Ordner-Namen aus dem ersten Unterordner-Pfad
-                    first_subfolder = list(folder_name.values())[0] if folder_name else ""
-                    base_folder = first_subfolder.split("/")[0] if "/" in first_subfolder else subfolder
+                    first_value = list(folder_name.values())[0] if folder_name else ""
+                    if isinstance(first_value, dict):
+                        base_folder = first_value["folder"].split("/")[0]
+                    elif isinstance(first_value, str):
+                        base_folder = first_value.split("/")[0] if "/" in first_value else subfolder
+                    else:
+                        base_folder = subfolder
                     subfolder_item.setData(0, Qt.ItemDataRole.UserRole, base_folder)
                     # Erstelle die Unter-Unterordner
                     for subsubcategory, actual_folder in folder_name.items():
                         subsubcategory_item = QTreeWidgetItem(subfolder_item)
                         subsubcategory_item.setText(0, subsubcategory)
-                        subsubcategory_item.setIcon(0, QIcon.fromTheme("folder"))
-                        subsubcategory_item.setData(0, Qt.ItemDataRole.UserRole, actual_folder)
+                        if isinstance(actual_folder, dict):
+                            subsubcategory_item.setData(0, Qt.ItemDataRole.UserRole, actual_folder["folder"])
+                            subsubcategory_item.setData(0, Qt.ItemDataRole.UserRole + 1, actual_folder["filter"])
+                        else:
+                            subsubcategory_item.setData(0, Qt.ItemDataRole.UserRole, actual_folder)
                         placeholder = QTreeWidgetItem(subsubcategory_item)
                         placeholder.setText(0, "Laden...")
                 else:
@@ -346,7 +384,6 @@ class SvgDock(QWidget):
                         # Entferne den Präfix (z.B. "Bundeswehr_") aus dem Namen
                         display_name = folder_name.split("_", 1)[1] if "_" in folder_name else folder_name
                         subfolder_item.setText(0, display_name)
-                        subfolder_item.setIcon(0, QIcon.fromTheme("folder"))
                         subfolder_item.setData(0, Qt.ItemDataRole.UserRole, folder_name)
                         # Setze einen Platzhalter für die SVG-Dateien
                         placeholder = QTreeWidgetItem(subfolder_item)
@@ -367,7 +404,6 @@ class SvgDock(QWidget):
         for subdir in subdirs:
             subfolder_item = QTreeWidgetItem(parent_item)
             subfolder_item.setText(0, subdir)
-            subfolder_item.setIcon(0, QIcon.fromTheme("folder"))
             # Setze den vollständigen Pfad als UserRole
             full_folder_path = f"{base_folder_name}/{subdir}" if base_folder_name else subdir
             subfolder_item.setData(0, Qt.ItemDataRole.UserRole, full_folder_path)
@@ -384,6 +420,9 @@ class SvgDock(QWidget):
         if not folder_name:
             return
 
+        # Optionaler Dateifilter (z.B. "Schadenskonto" oder "Schadensstelle")
+        file_filter = subfolder_item.data(0, Qt.ItemDataRole.UserRole + 1)
+
         folder_path = os.path.join(self.plugin_dir, "svgs", folder_name)
         logging.info(f"Suche Symbole in: {folder_path}")
 
@@ -391,6 +430,9 @@ class SvgDock(QWidget):
             if os.path.exists(folder_path):
                 logging.info(f"Ordner existiert: {folder_path}")
                 files = [f for f in os.listdir(folder_path) if f.endswith(".svg")]
+                # Filter anwenden, falls vorhanden
+                if file_filter:
+                    files = [f for f in files if os.path.splitext(f)[0] == file_filter or os.path.splitext(f)[0].startswith(file_filter + "_")]
                 logging.info(f"Gefundene SVG-Dateien: {files}")
                 # Verwende natürliche Sortierung für Dateien
                 files.sort(key=self.natural_sort_key)
@@ -430,7 +472,8 @@ class SvgDock(QWidget):
         self.treeWidget.setSortingEnabled(False)
 
         svg_path = os.path.join(self.plugin_dir, "svgs")
-        treffer = 0
+        thw_treffer = []
+        andere_treffer = []
 
         for root, dirs, files in os.walk(svg_path):
             for file in files:
@@ -438,16 +481,22 @@ class SvgDock(QWidget):
                     display_name = os.path.splitext(file)[0].replace("_", " ")
                     if text.lower() in file.lower() or text.lower() in display_name.lower():
                         full_path = os.path.join(root, file)
-                        symbol_item = QTreeWidgetItem(self.treeWidget)
-                        symbol_item.setText(0, display_name)
-                        symbol_item.setIcon(0, self.get_cached_icon(full_path))
-                        symbol_item.setData(0, Qt.ItemDataRole.UserRole, full_path)
-                        treffer += 1
+                        # Prüfe ob die Datei in einem THW-Ordner liegt
+                        rel_path = os.path.relpath(root, svg_path)
+                        if rel_path.startswith("THW_"):
+                            thw_treffer.append((display_name, full_path))
+                        else:
+                            andere_treffer.append((display_name, full_path))
 
-        if treffer == 0:
+        for display_name, full_path in thw_treffer + andere_treffer:
+            symbol_item = QTreeWidgetItem(self.treeWidget)
+            symbol_item.setText(0, display_name)
+            symbol_item.setIcon(0, self.get_cached_icon(full_path))
+            symbol_item.setData(0, Qt.ItemDataRole.UserRole, full_path)
+
+        if not thw_treffer and not andere_treffer:
             kein_treffer = QTreeWidgetItem(self.treeWidget)
             kein_treffer.setText(0, "Keine Treffer gefunden")
             kein_treffer.setIcon(0, QIcon.fromTheme("dialog-error"))
 
         self.treeWidget.repaint()
-        # Sortierung bleibt deaktiviert, da wir natürliche Sortierung verwenden

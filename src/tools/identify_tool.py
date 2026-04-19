@@ -30,6 +30,13 @@ class IdentifyTool(QgsMapToolIdentify):
     def canvasReleaseEvent(self, ev):
         if ev.button() != Qt.MouseButton.LeftButton:
             return
+        if self.layer is None:
+            return
+        try:
+            self.layer.id()
+        except RuntimeError:
+            self.layer = None
+            return
         try:
             point = self.canvas.getCoordinateTransform().toMapCoordinates(ev.pos().x(), ev.pos().y())
             closest = find_nearest_feature(self.layer, self.canvas, point)

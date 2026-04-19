@@ -24,7 +24,9 @@ from .tools.identify_tool import IdentifyTool
 from .tools.move_tool import MoveTool
 from .ui.config_dialog import ConfigDialog
 from .ui.nominatim_search_dialog import NominatimSearchDialog
+from .ui.setup_dialog import SetupDialog
 from .ui.svg_dock import SvgDock
+from .ui.template_dialog import TemplateDialog
 from .util.temp_files import cleanup_temp_files
 
 logger = get_logger(__name__)
@@ -104,12 +106,26 @@ class THWToolboxPlugin:
         self.iface.addToolBarIcon(self.action)
         self.iface.addPluginToMenu("THW Toolbox", self.action)
 
+        # Setup-Aktion (Projekt-Setup + Basiskarten)
+        setup_icon = QIcon(os.path.join(self.plugin_dir, "icons", "setup.svg"))
+        self.setup_action = QAction(setup_icon, "THW Toolbox Setup", self.iface.mainWindow())
+        self.setup_action.triggered.connect(self._open_setup_dialog)
+        self.iface.addToolBarIcon(self.setup_action)
+        self.iface.addPluginToMenu("THW Toolbox", self.setup_action)
+
         # Settings-Aktion in Toolbar neben dem Toolbox-Icon
         settings_icon = QIcon(os.path.join(self.plugin_dir, "icons", "settings.svg"))
         self.settings_action = QAction(settings_icon, "THW Toolbox Einstellungen", self.iface.mainWindow())
         self.settings_action.triggered.connect(self._open_config_dialog)
         self.iface.addToolBarIcon(self.settings_action)
         self.iface.addPluginToMenu("THW Toolbox", self.settings_action)
+
+        # Druckvorlagen
+        template_icon = QIcon(os.path.join(self.plugin_dir, "icons", "template.svg"))
+        self.template_action = QAction(template_icon, "Druckvorlagen", self.iface.mainWindow())
+        self.template_action.triggered.connect(self._open_template_dialog)
+        self.iface.addToolBarIcon(self.template_action)
+        self.iface.addPluginToMenu("THW Toolbox", self.template_action)
 
         # Adress-Suche (Nominatim)
         search_icon = QIcon(os.path.join(self.plugin_dir, "icons", "search.svg"))
@@ -127,6 +143,9 @@ class THWToolboxPlugin:
 
         # Verbinde Projekt-Events für automatisches Speichern
         QgsProject.instance().writeProject.connect(self._on_project_save)
+        # Reagiere auf Layer-Entfernung, damit wir das Plugin sauber deaktivieren,
+        # wenn der Marker-Layer aus dem Projekt gelöscht wird.
+        QgsProject.instance().layersWillBeRemoved.connect(self._on_layers_will_be_removed)
 
     def unload(self):
         # Plugin deaktivieren falls aktiv
@@ -144,39 +163,33 @@ class THWToolboxPlugin:
         if self.action:
             self.iface.removeToolBarIcon(self.action)
             self.iface.removePluginMenu("THW Toolbox", self.action)
+        if self.setup_action:
+            self.iface.removeToolBarIcon(self.setup_action)
+            self.iface.removePluginMenu("THW Toolbox", self.setup_action)
         if self.settings_action:
             self.iface.removeToolBarIcon(self.settings_action)
             self.iface.removePluginMenu("THW Toolbox", self.settings_action)
         if self.search_action:
             self.iface.removeToolBarIcon(self.search_action)
             self.iface.removePluginMenu("THW Toolbox", self.search_action)
+        if self.template_action:
+            self.iface.removeToolBarIcon(self.template_action)
+            self.iface.removePluginMenu("THW Toolbox", self.template_action)
         if self.export_action:
             self.iface.removePluginMenu("THW Toolbox", self.export_action)
 
         # Trenne Projekt-Events
         QgsProject.instance().writeProject.disconnect(self._on_project_save)
+        try:
+            QgsProject.instance().layersWillBeRemoved.disconnect(self._on_layers_will_be_removed)
+        except (TypeError, RuntimeError):
+            pass
 
         # Räume temporäre Dateien auf
         cleanup_temp_files(self.plugin_dir)
 
     def activate(self):
         logger.debug("Plugin wird aktiviert")
-
-        # Prüfe ZUERST, ob eine Karte vorhanden ist
-        if not self._check_map_available():
-            self._show_error_alert(
-                "Keine Karte vorhanden",
-                "Bitte ziehen Sie zuerst eine Karte in das Projekt ein.",
-                "Das Plugin benötigt eine Karte mit einem Koordinatensystem (CRS), um funktionieren zu können.\n\n"
-                "So fügen Sie eine Karte hinzu:\n"
-                "1. Gehen Sie zu 'Browser' im QGIS-Fenster\n"
-                "2. Ziehen Sie eine Karte (z.B. OpenStreetMap) in das Projekt\n"
-                "3. Aktivieren Sie das Plugin erneut",
-            )
-            # Plugin nicht aktivieren - Checkbox zurücksetzen
-            if self.action:
-                self.action.setChecked(False)
-            return
 
         # Bereinige alte temporäre Dateien beim Start
         cleanup_temp_files(self.plugin_dir)
@@ -252,8 +265,12 @@ class THWToolboxPlugin:
         logger.debug("Plugin wird deaktiviert")
 
         # Canvas-Tool zurücksetzen
-        if self.canvas.mapTool() == self.move_tool:
-            self.canvas.unsetMapTool(self.move_tool)
+        if self.move_tool:
+            try:
+                if self.canvas.mapTool() == self.move_tool:
+                    self.canvas.unsetMapTool(self.move_tool)
+            except RuntimeError:
+                pass
 
         # Dock verstecken
         if self.dock:
@@ -267,17 +284,71 @@ class THWToolboxPlugin:
         if self.action:
             self.action.setChecked(False)
 
+    def _on_layers_will_be_removed(self, layer_ids):
+        """Wenn der Marker-Layer aus dem Projekt entfernt wird, Plugin sauber deaktivieren."""
+        if not self.layer:
+            return
+        try:
+            our_id = self.layer.id()
+        except RuntimeError:
+            # Layer-C++-Objekt ist bereits weg — trotzdem aufräumen
+            our_id = None
+
+        if our_id is None or our_id in layer_ids:
+            logger.debug("Marker-Layer wird entfernt, deaktiviere Plugin")
+            # Referenzen löschen, bevor die Tools weiter darauf zugreifen
+            self.layer = None
+            if self.layer_manager:
+                self.layer_manager.layer = None
+            if self.ident_tool:
+                self.ident_tool.layer = None
+            if self.move_tool:
+                self.move_tool.layer = None
+
+            was_active = self.action is not None and self.action.isChecked()
+            if was_active:
+                self.deactivate()
+                self._show_error_alert(
+                    "THW Toolbox deaktiviert",
+                    "Der Marker-Layer „THW Toolbox Marker“ wurde aus dem Projekt entfernt.",
+                    "Das Plugin benötigt diesen Layer, um Symbole zu verwalten, und wurde deshalb deaktiviert.\n\n"
+                    "So reaktivieren Sie die Toolbox:\n"
+                    "1. Klicken Sie erneut auf das THW-Toolbox-Symbol in der Werkzeugleiste.\n"
+                    "2. Der Marker-Layer wird automatisch neu angelegt oder geladen.",
+                )
+
     def _init_dock(self):
         if self.dock:
             # Dock existiert bereits, zeige es an
             self.dock.show()
             self.dock.raise_()
             return
-        self.dock = QDockWidget("Taktische Zeichen", self.iface.mainWindow())
+        self.dock = QDockWidget("THW Toolbox", self.iface.mainWindow())
         self.dock.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea)
-        self.svg_dock_widget = SvgDock(self.plugin_dir, self._on_svg_drag_start, self._open_config_dialog)
+        self.svg_dock_widget = SvgDock(
+            self.plugin_dir,
+            self._on_svg_drag_start,
+            self._open_config_dialog,
+            layer_provider=lambda: self.layer,
+            navigate_callback=self._navigate_to_feature,
+        )
         self.dock.setWidget(self.svg_dock_widget)
         self.iface.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock)
+
+    def _navigate_to_feature(self, fid):
+        """Zentriert die Karte auf das Feature — ohne Auswahl oder Drag-Modus."""
+        if not self.layer:
+            return
+        feat = self.layer.getFeature(fid)
+        if not feat or not feat.isValid() or not feat.geometry():
+            return
+        point = feat.geometry().asPoint()
+        self.canvas.setCenter(point)
+        self.canvas.refresh()
+        if self.move_tool:
+            self.move_tool.moving_feature = None
+            self.move_tool.set_move_mode(False)
+        self.canvas.setCursor(Qt.CursorShape.ArrowCursor)
 
     def _on_svg_drag_start(self, svg_path):
         self.current_svg = svg_path
@@ -344,13 +415,14 @@ class THWToolboxPlugin:
         if not new_feature:
             return
 
+        if hasattr(self, "svg_dock_widget"):
+            self.svg_dock_widget.refresh_marker_list()
+
         # Feature im Dock auswählen + Move-Modus aktivieren
         if self.ident_tool and hasattr(self.ident_tool, "feature_dock"):
             self.ident_tool.feature_dock.show_feature(new_feature, self)
         if self.move_tool:
-            self.move_tool.moving_feature = new_feature
             self.move_tool.set_move_mode(True)
-            self.canvas.setCursor(Qt.CursorShape.ClosedHandCursor)
 
     # ------------------------------------------------------------------
     # Public callbacks (called from FeatureDock with legacy method names)
@@ -363,6 +435,7 @@ class THWToolboxPlugin:
         if hasattr(self, "svg_dock_widget"):
             self.svg_dock_widget.treeWidget.clear()
             self.svg_dock_widget.populate_root_folders()
+            self.svg_dock_widget.refresh_marker_list()
         if hasattr(self.iface, "layerTreeView") and self.layer:
             self.iface.layerTreeView().refreshLayerSymbology(self.layer.id())
         self.canvas.refresh()
@@ -401,6 +474,12 @@ class THWToolboxPlugin:
 
     def _open_search_dialog(self):
         NominatimSearchDialog(self.canvas, self.iface.mainWindow()).exec()
+
+    def _open_template_dialog(self):
+        TemplateDialog(self.plugin_dir, self.iface.mainWindow()).exec()
+
+    def _open_setup_dialog(self):
+        SetupDialog(self, self.iface.mainWindow()).exec()
 
     def _open_config_dialog(self):
         if ConfigDialog(self.settings, self.iface.mainWindow()).exec_and_apply():

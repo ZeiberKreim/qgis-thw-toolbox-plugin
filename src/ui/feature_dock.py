@@ -93,10 +93,10 @@ class FeatureDock(QDockWidget):
         size_layout.addWidget(self.size_label)
 
         self.size_spinbox = QSpinBox()
-        self.size_spinbox.setMinimum(10)  # Minimale Größe
-        self.size_spinbox.setMaximum(200)  # Maximale Größe
-        self.size_spinbox.setValue(50)  # Standardwert
-        self.size_spinbox.setSingleStep(1)  # Schrittweite
+        self.size_spinbox.setMinimum(10)
+        self.size_spinbox.setMaximum(2000)
+        self.size_spinbox.setValue(50)
+        self.size_spinbox.setSingleStep(1)
         size_layout.addWidget(self.size_spinbox)
 
         self.main_layout.addLayout(size_layout)
@@ -126,11 +126,13 @@ class FeatureDock(QDockWidget):
         rotation_layout.addWidget(self.rotation_label)
 
         self.rotation_slider = QSlider(Qt.Orientation.Horizontal)
-        self.rotation_slider.setMinimum(0)  # 0 Grad
-        self.rotation_slider.setMaximum(360)  # 360 Grad
-        self.rotation_slider.setValue(0)  # Standardwert
+        self.rotation_slider.setMinimum(-180)
+        self.rotation_slider.setMaximum(180)
+        self.rotation_slider.setValue(0)
+        self.rotation_slider.setSingleStep(10)
+        self.rotation_slider.setPageStep(10)
         self.rotation_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
-        self.rotation_slider.setTickInterval(45)  # Alle 45 Grad eine Markierung
+        self.rotation_slider.setTickInterval(30)
         rotation_layout.addWidget(self.rotation_slider)
 
         self.rotation_value_label = QLabel("0°")
@@ -322,9 +324,13 @@ class FeatureDock(QDockWidget):
         self.btn_delete.show()
 
         # SpinBox und Schieberegler auf aktuelle Größe setzen
-        current_size = feat.attribute("size")
-        self.size_spinbox.setValue(int(current_size))
-        self.size_slider.setValue(int(current_size))
+        current_size = int(feat.attribute("size"))
+        self.size_spinbox.blockSignals(True)
+        self.size_spinbox.setValue(current_size)
+        self.size_spinbox.blockSignals(False)
+        self.size_slider.blockSignals(True)
+        self.size_slider.setValue(current_size)
+        self.size_slider.blockSignals(False)
 
         # Checkbox auf aktuellen Wert setzen oder Standardwert verwenden
         try:
@@ -355,6 +361,7 @@ class FeatureDock(QDockWidget):
             rotation = feat.attribute("rotation") or 0.0
         except:
             rotation = 0.0
+        rotation = ((float(rotation) + 180.0) % 360.0) - 180.0
         self.rotation_slider.setValue(int(rotation))
         self.rotation_value_label.setText(f"{int(rotation)}°")
 
@@ -529,11 +536,14 @@ class FeatureDock(QDockWidget):
         if not hasattr(self, "feat") or not self.feat:
             return
 
-        # Aktualisiere das Label mit dem aktuellen Wert
-        self.rotation_value_label.setText(f"{value}°")
+        snapped = int(round(value / 10.0)) * 10
+        if snapped != value:
+            self.rotation_slider.blockSignals(True)
+            self.rotation_slider.setValue(snapped)
+            self.rotation_slider.blockSignals(False)
 
-        # Rotation im Feature aktualisieren
-        self.layer_manager.rotate_feature(self.feat.id(), float(value))
+        self.rotation_value_label.setText(f"{snapped}°")
+        self.layer_manager.rotate_feature(self.feat.id(), float(snapped))
 
     def on_rotation_slider_released(self):
         """Wird aufgerufen, wenn der Rotationsschieberegler losgelassen wird"""

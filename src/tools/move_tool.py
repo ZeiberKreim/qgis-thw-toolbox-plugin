@@ -36,6 +36,17 @@ class MoveTool(QgsMapTool):
         self.last_canvas_update = 0
         self.last_dock_update = 0
 
+    def _layer_is_usable(self):
+        """True solange der Layer existiert und sein C++-Objekt nicht gelöscht wurde."""
+        if self.layer is None:
+            return False
+        try:
+            self.layer.id()
+        except RuntimeError:
+            self.layer = None
+            return False
+        return True
+
     def set_move_mode(self, enabled):
         self.is_move_mode = enabled
         if enabled:
@@ -45,6 +56,8 @@ class MoveTool(QgsMapTool):
         self.moving_feature = None
 
     def canvasMoveEvent(self, event):
+        if not self._layer_is_usable():
+            return
         # Hover detection: throttled to 100ms to avoid scanning the layer every pixel.
         if not self.moving_feature:
             current_time = time.time() * 1000
@@ -107,6 +120,8 @@ class MoveTool(QgsMapTool):
 
     def canvasPressEvent(self, event):
         if event.button() != Qt.MouseButton.LeftButton:
+            return
+        if not self._layer_is_usable():
             return
 
         point = self.canvas.getCoordinateTransform().toMapCoordinates(event.pos().x(), event.pos().y())

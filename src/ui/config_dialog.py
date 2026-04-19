@@ -60,7 +60,7 @@ class ConfigDialog(QDialog):
 
         self._spin_icon_size = QSpinBox()
         self._spin_icon_size.setMinimum(10)
-        self._spin_icon_size.setMaximum(200)
+        self._spin_icon_size.setMaximum(2000)
         self._spin_icon_size.setSingleStep(1)
         self._spin_icon_size.setValue(self._settings.new_icon_size)
         form.addRow("Fixe Standardgröße für neue Zeichen", self._spin_icon_size)

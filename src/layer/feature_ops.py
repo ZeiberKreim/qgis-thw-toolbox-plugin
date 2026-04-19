@@ -9,7 +9,7 @@ from .fields import field_types_dict
 # Default size used when adaptive sizing has no zoom info
 _BASE_SIZE = 30.0
 # Bounds for the adaptive zoom-aware initial size
-_ADAPTIVE_MIN = 10.0
+_ADAPTIVE_MIN = 50.0
 _ADAPTIVE_MAX = 500.0
 
 

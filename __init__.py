@@ -1,4 +1,4 @@
 def classFactory(iface):
-    from .thwtoolboxplugin import THWToolboxPlugin
+    from .src.plugin import THWToolboxPlugin
 
     return THWToolboxPlugin(iface)

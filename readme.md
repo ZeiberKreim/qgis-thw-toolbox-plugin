@@ -175,11 +175,9 @@ Das Paket kann auf anderen Systemen ohne zusätzliche Abhängigkeiten verwendet 
 
 ## Credits
 
-### Taktische Zeichen
-
 Die taktischen Zeichen stammen aus dem hervorragenden Projekt [Taktische-Zeichen](https://github.com/jonas-koeritz/Taktische-Zeichen) von **[Jonas Köritz](https://github.com/jonas-koeritz)**. Vielen Dank für die umfangreiche und hochwertige Sammlung von über 1000 taktischen Zeichen, die als SVG frei zur Verfügung gestellt werden.
 
-Ein besonderer Dank geht auch an **[ZeiberKreim](https://github.com/ZeiberKreim)** für wertvolle Beiträge und Erweiterungen der Zeichen-Sammlung.
+Ein besonderer Dank geht auch an **[ZeiberKreim](https://github.com/ZeiberKreim)** für wertvolle Beiträge und Erweiterungen des Plugins.
 
 ### Verwendete Ressourcen
 

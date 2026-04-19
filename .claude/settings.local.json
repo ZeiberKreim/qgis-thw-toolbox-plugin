@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"c:\\\\Users\\\\paull\\\\AppData\\\\Roaming\\\\QGIS\\\\QGIS4\\\\profiles\\\\Development\\\\python\\\\plugins\\\\qgis-thw-toolbox-plugin\"/*.py)",
+      "Bash(grep -E \"^d|\\\\.py$\")",
+      "Bash(git mv *)"
+    ]
+  }
+}

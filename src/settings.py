@@ -1,3 +1,8 @@
+from .logging_utils import get_logger
+
+logger = get_logger(__name__)
+
+
 class THWToolboxSettings:
     # Default values for settings
     NEW_ICON_SCALING_WITH_MAP_DEFAULT = False
@@ -119,7 +124,7 @@ class THWToolboxSettings:
                 if hasattr(self, public_prop):
                     setattr(self, public_prop, final_value)
 
-                print(f"DEBUG: Tried to load {config_key} with result {ok} and value {final_value}")
+                logger.debug("Tried to load %s with result %s and value %s", config_key, ok, final_value)
 
         proj.setDirty(True)
 

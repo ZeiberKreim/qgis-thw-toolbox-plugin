@@ -1,12 +1,10 @@
-# identifytool.py
-
 import os
 import time
 
 from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsFeatureRequest, QgsProject
 from qgis.gui import QgsMapToolIdentify
 from qgis.PyQt.QtCore import Qt, QTimer
-from qgis.PyQt.QtGui import QPixmap
+from qgis.PyQt.QtGui import QIcon, QPixmap
 from qgis.PyQt.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -25,7 +23,21 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+from ..logging_utils import get_logger
+from ..paths import plugin_root
 from .origin_point_widget import OriginPointWidget
+
+logger = get_logger(__name__)
+
+
+def _load_svg_pixmap(path: str, size: int = 180) -> QPixmap | None:
+    """Load `path` as a pixmap. Tries QIcon first (better SVG handling),
+    then QPixmap as fallback. Returns None if both fail."""
+    icon = QIcon(path)
+    pixmap = icon.pixmap(size, size)
+    if pixmap.isNull():
+        pixmap = QPixmap(path)
+    return pixmap if not pixmap.isNull() else None
 
 
 class FeatureDock(QDockWidget):
@@ -226,124 +238,49 @@ class FeatureDock(QDockWidget):
         self.feat = feat
         self.layer_manager = layer_manager
 
-        # Debug: Zeige Feature-Daten
-        print(f"DEBUG: Feature-Daten:")
-        print(f"  - ID: {feat.id()}")
-        print(f"  - SVG-Pfad: {feat.attribute('svg_path') if feat.attribute('svg_path') else 'N/A'}")
-        print(f"  - SVG-Inhalt vorhanden: {bool(feat.attribute('svg_content'))}")
-        print(f"  - SVG-Inhalt Länge: {len(feat.attribute('svg_content')) if feat.attribute('svg_content') else 0}")
-        print(f"  - Größe: {feat.attribute('size') if feat.attribute('size') else 'N/A'}")
+        logger.debug(
+            "show_feature id=%s svg_path=%s svg_content_len=%d size=%s",
+            feat.id(),
+            feat.attribute("svg_path") or "N/A",
+            len(feat.attribute("svg_content") or ""),
+            feat.attribute("size") or "N/A",
+        )
 
-        # Platzhalter verstecken
         self.placeholder_label.hide()
 
-        # SVG-Preview aktualisieren
         try:
             pixmap = None
             svg_path_feat = feat.attribute("svg_path")
             svg_content_feat = feat.attribute("svg_content") or ""
 
-            # Versuche zuerst den SVG-Inhalt zu verwenden
-            if svg_content_feat and svg_content_feat.strip():
-                print("DEBUG: Versuche SVG-Inhalt zu verwenden")
-                # Erstelle temporäre SVG-Datei für Preview
+            if svg_content_feat.strip():
                 temp_svg = self._create_temp_svg_for_preview(svg_content_feat)
                 if temp_svg and os.path.exists(temp_svg):
-                    print(f"DEBUG: Temporäre SVG-Datei erstellt: {temp_svg}")
-                    # Versuche zuerst mit QIcon (bessere SVG-Unterstützung)
-                    from qgis.PyQt.QtGui import QIcon
+                    pixmap = _load_svg_pixmap(temp_svg)
 
-                    icon = QIcon(temp_svg)
-                    pixmap = icon.pixmap(180, 180)
-                    if pixmap.isNull():
-                        print("DEBUG: QIcon-Pixmap ist null, versuche QPixmap")
-                        # Fallback auf QPixmap
-                        pixmap = QPixmap(temp_svg)
-                    else:
-                        print("DEBUG: QIcon-Pixmap erfolgreich geladen")
-                else:
-                    print("DEBUG: Temporäre SVG-Datei konnte nicht erstellt werden")
-
-            # Falls SVG-Inhalt nicht funktioniert hat, versuche den Pfad
             if pixmap is None or pixmap.isNull():
-                print("DEBUG: Versuche SVG-Pfad zu verwenden")
-                # Konvertiere relativen Pfad zu absolutem Pfad (wie im Haupt-Plugin)
                 if not os.path.isabs(svg_path_feat):
-                    plugin_dir = os.path.dirname(__file__)
-                    absolute_path = os.path.join(plugin_dir, svg_path_feat)
-                    print(f"DEBUG: Konvertierter absoluter Pfad: {absolute_path}")
-                    if os.path.exists(absolute_path):
-                        print("DEBUG: Absoluter Pfad existiert, lade SVG")
-                        # Versuche zuerst mit QIcon (bessere SVG-Unterstützung)
-                        from qgis.PyQt.QtGui import QIcon
-
-                        icon = QIcon(absolute_path)
-                        pixmap = icon.pixmap(180, 180)
-                        if pixmap.isNull():
-                            print("DEBUG: QIcon-Pixmap ist null, versuche QPixmap")
-                            # Fallback auf QPixmap
-                            pixmap = QPixmap(absolute_path)
-                        else:
-                            print("DEBUG: QIcon-Pixmap erfolgreich geladen")
-                    else:
-                        print("DEBUG: Absoluter Pfad existiert nicht, verwende ursprünglichen Pfad")
-                        # Fallback: Verwende den ursprünglichen Pfad
-                        pixmap = QPixmap(svg_path_feat)
+                    absolute_path = os.path.join(plugin_root(), svg_path_feat)
+                    pixmap = _load_svg_pixmap(absolute_path if os.path.exists(absolute_path) else svg_path_feat)
                 else:
-                    print("DEBUG: Pfad ist bereits absolut")
-                    # Versuche zuerst mit QIcon (bessere SVG-Unterstützung)
-                    from qgis.PyQt.QtGui import QIcon
+                    pixmap = _load_svg_pixmap(svg_path_feat)
 
-                    icon = QIcon(svg_path_feat)
-                    pixmap = icon.pixmap(180, 180)
-                    if pixmap.isNull():
-                        print("DEBUG: QIcon-Pixmap ist null, versuche QPixmap")
-                        # Fallback auf QPixmap
-                        pixmap = QPixmap(svg_path_feat)
-                    else:
-                        print("DEBUG: QIcon-Pixmap erfolgreich geladen")
-
-            # Prüfe ob das Pixmap erfolgreich geladen wurde
             if pixmap is not None and not pixmap.isNull():
-                print("DEBUG: Pixmap erfolgreich geladen, skaliere für Vorschau")
-                # Skaliere das Bild für die Vorschau
                 scaled_pixmap = pixmap.scaled(
                     180, 180, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
                 )
                 self.svg_label.setPixmap(scaled_pixmap)
                 self.svg_label.setStyleSheet("QLabel { border: 2px solid #2E86AB; background-color: white; }")
-                print("DEBUG: SVG-Preview erfolgreich angezeigt")
             else:
-                print("DEBUG: Pixmap ist None oder null")
                 raise Exception("Pixmap konnte nicht geladen werden")
 
         except Exception as e:
-            print(f"Fehler beim Laden des SVG-Previews: {e}")
-            print(f"SVG-Pfad: {feat.attribute('svg_path') if feat.attribute('svg_path') else 'N/A'}")
-            print(f"SVG-Inhalt vorhanden: {bool(feat.attribute('svg_content'))}")
-            print(f"SVG-Inhalt Länge: {len(feat.attribute('svg_content')) if feat.attribute('svg_content') else 0}")
-
-            # Versuche alternative SVG-Loading-Methoden
-            try:
-                # Versuche mit QIcon (funktioniert oft besser mit SVG)
-                from qgis.PyQt.QtGui import QIcon
-
-                svg_path_feat = feat.attribute("svg_path")
-                if not os.path.isabs(svg_path_feat):
-                    plugin_dir = os.path.dirname(__file__)
-                    absolute_path = os.path.join(plugin_dir, svg_path_feat)
-                    if os.path.exists(absolute_path):
-                        icon = QIcon(absolute_path)
-                        pixmap = icon.pixmap(180, 180)
-                        if not pixmap.isNull():
-                            self.svg_label.setPixmap(pixmap)
-                            self.svg_label.setStyleSheet(
-                                "QLabel { border: 2px solid #2E86AB; background-color: white; }"
-                            )
-                            return
-            except Exception as e2:
-                print(f"Alternative SVG-Loading-Methode fehlgeschlagen: {e2}")
-
+            logger.warning(
+                "Fehler beim Laden des SVG-Previews: %s (svg_path=%s, svg_content_len=%d)",
+                e,
+                feat.attribute("svg_path") or "N/A",
+                len(feat.attribute("svg_content") or ""),
+            )
             self.svg_label.setText("SVG konnte nicht geladen werden")
             self.svg_label.setStyleSheet("QLabel { border: 2px dashed #ccc; background-color: #f9f9f9; color: #999; }")
 
@@ -498,7 +435,7 @@ class FeatureDock(QDockWidget):
                 pass
 
             # Erstelle temporäres Verzeichnis falls es nicht existiert
-            temp_dir = os.path.join(os.path.dirname(__file__), "temp_files", "preview_cache")
+            temp_dir = os.path.join(plugin_root(), "temp_files", "preview_cache")
             os.makedirs(temp_dir, exist_ok=True)
 
             # Erstelle eindeutigen Dateinamen für Preview

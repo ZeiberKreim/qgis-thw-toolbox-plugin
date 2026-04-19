@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 
@@ -13,12 +12,9 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
-# Logging-Konfiguration
-logging.basicConfig(
-    filename=os.path.join(os.path.dirname(__file__), "svg_dock.log"),
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+from ..logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class SvgDock(QWidget):
@@ -28,7 +24,7 @@ class SvgDock(QWidget):
         self.select_callback = select_callback
         self.icon_cache = {}  # Cache für Icons
 
-        logging.info(f"Initialisiere SvgDock mit Plugin-Verzeichnis: {plugin_dir}")
+        logger.info(f"Initialisiere SvgDock mit Plugin-Verzeichnis: {plugin_dir}")
 
         layout = QVBoxLayout()
         self.setLayout(layout)
@@ -172,11 +168,11 @@ class SvgDock(QWidget):
         self.treeWidget.setSortingEnabled(False)  # Deaktiviere Sortierung während des Aufbaus
 
         svg_path = os.path.join(self.plugin_dir, "svgs")
-        logging.info(f"Plugin-Verzeichnis: {self.plugin_dir}")
-        logging.info(f"SVG-Pfad: {svg_path}")
+        logger.info(f"Plugin-Verzeichnis: {self.plugin_dir}")
+        logger.info(f"SVG-Pfad: {svg_path}")
 
         if not os.path.exists(svg_path):
-            logging.error(f"SVG-Pfad existiert nicht: {svg_path}")
+            logger.error(f"SVG-Pfad existiert nicht: {svg_path}")
             return
 
         categories = self.get_category_folders()
@@ -424,16 +420,16 @@ class SvgDock(QWidget):
         file_filter = subfolder_item.data(0, Qt.ItemDataRole.UserRole + 1)
 
         folder_path = os.path.join(self.plugin_dir, "svgs", folder_name)
-        logging.info(f"Suche Symbole in: {folder_path}")
+        logger.info(f"Suche Symbole in: {folder_path}")
 
         try:
             if os.path.exists(folder_path):
-                logging.info(f"Ordner existiert: {folder_path}")
+                logger.info(f"Ordner existiert: {folder_path}")
                 files = [f for f in os.listdir(folder_path) if f.endswith(".svg")]
                 # Filter anwenden, falls vorhanden
                 if file_filter:
                     files = [f for f in files if os.path.splitext(f)[0] == file_filter or os.path.splitext(f)[0].startswith(file_filter + "_")]
-                logging.info(f"Gefundene SVG-Dateien: {files}")
+                logger.info(f"Gefundene SVG-Dateien: {files}")
                 # Verwende natürliche Sortierung für Dateien
                 files.sort(key=self.natural_sort_key)
 
@@ -447,9 +443,9 @@ class SvgDock(QWidget):
                     symbol_item.setIcon(0, self.get_cached_icon(full_path))
                     symbol_item.setData(0, Qt.ItemDataRole.UserRole, full_path)
             else:
-                logging.warning(f"Ordner existiert NICHT: {folder_path}")
+                logger.warning(f"Ordner existiert NICHT: {folder_path}")
         except Exception as e:
-            logging.error(f"Fehler beim Lesen des Ordners {folder_path}: {str(e)}")
+            logger.error(f"Fehler beim Lesen des Ordners {folder_path}: {str(e)}")
 
     def on_item_pressed(self, item):
         svg_path = item.data(0, Qt.ItemDataRole.UserRole)
@@ -463,7 +459,7 @@ class SvgDock(QWidget):
             drag.exec(Qt.DropAction.CopyAction)
 
     def on_search(self, text):
-        print("on_search wurde aufgerufen mit:", text)
+        logger.debug("on_search aufgerufen mit: %s", text)
         if not text:
             self.populate_root_folders()
             return

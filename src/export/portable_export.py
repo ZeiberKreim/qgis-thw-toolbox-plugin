@@ -1,0 +1,154 @@
+import os
+import platform
+import shutil
+import subprocess
+import zipfile
+from collections.abc import Callable
+
+from qgis.core import QgsVectorLayer
+from qgis.PyQt.QtWidgets import QFileDialog
+
+# Files / dirs that ship with every export. Resources stay at plugin root,
+# Python code lives under src/, plus the QGIS plugin manifest.
+_EXPORT_DIRS = ("svgs", "icons", "src")
+_EXPORT_FILES = ("__init__.py", "metadata.txt")
+_GPKG_EXPORT_NAME = "taktische_zeichen.gpkg"
+# Subdirectory created inside the user-picked container
+_BUNDLE_DIR_NAME = "THW_Toolbox_Portable"
+
+_README = """THW Toolbox Plugin - Portables Paket
+
+Installation:
+1. Entpacken Sie alle Dateien in einen Ordner
+2. Kopieren Sie den gesamten Ordner in Ihr QGIS Plugin-Verzeichnis:
+   - Windows: %APPDATA%/QGIS/QGIS3/profiles/default/python/plugins/
+   - Linux: ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/
+   - macOS: ~/Library/Application Support/QGIS/QGIS3/profiles/default/python/plugins/
+3. Aktivieren Sie das Plugin in QGIS über Plugins -> Verwalten und installieren
+
+Verwendung:
+- Das Plugin erstellt automatisch einen Layer "THW Toolbox Marker"
+- Alle Symbole werden in der GeoPackage-Datei gespeichert
+- Die Symbole sind vollständig portabel und funktionieren auch ohne das Plugin
+
+Hinweis:
+- Alle SVG-Symbole sind im 'svgs' Ordner enthalten
+- Die GeoPackage-Datei enthält alle gesetzten Symbole mit Koordinaten
+"""
+
+
+class PortableExporter:
+    """Bundle the plugin + current GeoPackage into a portable ZIP.
+
+    Copies plugin code (src/), resources (svgs/, icons/), the current
+    layer's GeoPackage, plus a README into a target directory and zips it.
+    The output ZIP can be dropped into any QGIS plugin folder.
+
+    UI feedback (success message, error dialog) goes through callbacks
+    so this module stays free of QGIS iface coupling.
+    """
+
+    def __init__(
+        self,
+        plugin_dir: str,
+        get_layer: Callable[[], QgsVectorLayer | None],
+        on_success: Callable[[str], None],
+        on_error: Callable[[str, str, str], None],
+    ):
+        self._plugin_dir = plugin_dir
+        self._get_layer = get_layer
+        self._on_success = on_success
+        self._on_error = on_error
+
+    def export(self, target_dir: str) -> bool:
+        """Build the bundle at `target_dir`, zip it, then remove the staging dir."""
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+            self._copy_resources(target_dir)
+            self._copy_geopackage(target_dir)
+            self._write_readme(target_dir)
+            zip_path = self._make_zip(target_dir)
+            # Staging dir was only needed to build the zip — drop it so only
+            # the .zip remains for the user.
+            shutil.rmtree(target_dir, ignore_errors=True)
+            self._on_success(zip_path)
+            return True
+        except Exception as e:
+            self._on_error(
+                "Export-Fehler",
+                "Konnte portables Paket nicht erstellen",
+                f"Export-Pfad: {target_dir}\nFehler: {e}",
+            )
+            return False
+
+    def prompt_and_export(self, parent_widget) -> bool:
+        """Ask the user for a container dir, then export into a subfolder inside it."""
+        # Seed the dialog with the user's Desktop (which exists). The bundle
+        # subfolder gets appended after — getExistingDirectory only accepts
+        # existing paths as the initial location.
+        initial_dir = os.path.join(os.path.expanduser("~"), "Desktop")
+        if not os.path.isdir(initial_dir):
+            initial_dir = os.path.expanduser("~")
+
+        container = QFileDialog.getExistingDirectory(
+            parent_widget, "Übergeordnetes Verzeichnis für portables Paket auswählen", initial_dir
+        )
+        if not container:
+            return False
+
+        target_dir = os.path.join(container, _BUNDLE_DIR_NAME)
+        if not self.export(target_dir):
+            return False
+        # Reveal the .zip in the file manager (staging dir was already deleted)
+        _reveal_in_file_manager(os.path.normpath(target_dir + ".zip"))
+        return True
+
+    def _copy_resources(self, target_dir: str) -> None:
+        for name in _EXPORT_DIRS:
+            src = os.path.join(self._plugin_dir, name)
+            if os.path.exists(src):
+                shutil.copytree(src, os.path.join(target_dir, name), dirs_exist_ok=True)
+        for name in _EXPORT_FILES:
+            src = os.path.join(self._plugin_dir, name)
+            if os.path.exists(src):
+                shutil.copy2(src, target_dir)
+
+    def _copy_geopackage(self, target_dir: str) -> None:
+        layer = self._get_layer()
+        if not layer or layer.providerType() != "ogr":
+            return
+        source_gpkg = layer.source().split("|")[0]
+        if os.path.exists(source_gpkg):
+            shutil.copy2(source_gpkg, os.path.join(target_dir, _GPKG_EXPORT_NAME))
+
+    def _write_readme(self, target_dir: str) -> None:
+        with open(os.path.join(target_dir, "README.txt"), "w", encoding="utf-8") as f:
+            f.write(_README)
+
+    def _make_zip(self, target_dir: str) -> str:
+        zip_path = target_dir + ".zip"
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+            for root, _dirs, files in os.walk(target_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    zipf.write(file_path, os.path.relpath(file_path, target_dir))
+        return zip_path
+
+
+def _reveal_in_file_manager(file_path: str) -> None:
+    """Open the file manager and select `file_path`. Failures are silent.
+
+    Windows/macOS support reveal-and-select; Linux's xdg-open only opens
+    folders, so we fall back to opening the parent directory.
+    """
+    try:
+        system = platform.system()
+        if system == "Windows":
+            # /select,<path> — comma, no space; explorer is picky about quoting
+            subprocess.run(["explorer", f"/select,{file_path}"])
+        elif system == "Darwin":
+            subprocess.run(["open", "-R", file_path])
+        else:
+            subprocess.run(["xdg-open", os.path.dirname(file_path)])
+    except Exception:
+        pass

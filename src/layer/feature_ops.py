@@ -164,8 +164,11 @@ class FeatureOperations:
         f.setAttribute("show_label", False)
         f.setAttribute("white_background", False)
         f.setAttribute("rotation", 0.0)
-        f.setAttribute("origin_x", 1)
-        f.setAttribute("origin_y", 1)
+        origin_x, origin_y = 1, 1
+        if os.path.basename(svg_path).startswith("Schadensstelle"):
+            origin_y = 0
+        f.setAttribute("origin_x", origin_x)
+        f.setAttribute("origin_y", origin_y)
 
         layer.startEditing()
         added = layer.dataProvider().addFeature(f)

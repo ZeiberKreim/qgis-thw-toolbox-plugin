@@ -19,7 +19,6 @@
 ]]>
 		</style>
 	</defs>
-    <path d="M0,5 l256,0 M0,251 l256,0" stroke="#000000" stroke-width="8" fill="none" />
     <ellipse cx="128" cy="128" rx="110" ry="110" stroke-width="6" fill="#FF0000" stroke="#000000" />
     <text style="font-family: 'Roboto Slab'; font-weight: bold; text-anchor: middle; font-size: 120px;" fill="#FFFFFF" x="128" y="170">6</text>
 </svg>

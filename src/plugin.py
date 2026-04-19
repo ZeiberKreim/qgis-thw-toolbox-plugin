@@ -7,7 +7,7 @@ from qgis.core import (
     QgsProject,
 )
 from qgis.PyQt.QtCore import QSize, Qt
-from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtGui import QIcon, QKeySequence
 from qgis.PyQt.QtWidgets import QAction, QDockWidget, QMessageBox
 from qgis.utils import iface
 
@@ -23,6 +23,7 @@ from .tools.canvas_drop_filter import CanvasDropFilter
 from .tools.identify_tool import IdentifyTool
 from .tools.move_tool import MoveTool
 from .ui.config_dialog import ConfigDialog
+from .ui.nominatim_search_dialog import NominatimSearchDialog
 from .ui.svg_dock import SvgDock
 from .util.temp_files import cleanup_temp_files
 
@@ -103,6 +104,22 @@ class THWToolboxPlugin:
         self.iface.addToolBarIcon(self.action)
         self.iface.addPluginToMenu("THW Toolbox", self.action)
 
+        # Settings-Aktion in Toolbar neben dem Toolbox-Icon
+        settings_icon = QIcon(os.path.join(self.plugin_dir, "icons", "settings.svg"))
+        self.settings_action = QAction(settings_icon, "THW Toolbox Einstellungen", self.iface.mainWindow())
+        self.settings_action.triggered.connect(self._open_config_dialog)
+        self.iface.addToolBarIcon(self.settings_action)
+        self.iface.addPluginToMenu("THW Toolbox", self.settings_action)
+
+        # Adress-Suche (Nominatim)
+        search_icon = QIcon(os.path.join(self.plugin_dir, "icons", "search.svg"))
+        self.search_action = QAction(search_icon, "Adresse suchen", self.iface.mainWindow())
+        self.search_action.setShortcut(QKeySequence("Alt+S"))
+        self.search_action.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
+        self.search_action.triggered.connect(self._open_search_dialog)
+        self.iface.addToolBarIcon(self.search_action)
+        self.iface.addPluginToMenu("THW Toolbox", self.search_action)
+
         # Export-Aktion hinzufügen
         self.export_action = QAction("Portables Paket exportieren", self.iface.mainWindow())
         self.export_action.triggered.connect(self._export_portable_package)
@@ -127,6 +144,12 @@ class THWToolboxPlugin:
         if self.action:
             self.iface.removeToolBarIcon(self.action)
             self.iface.removePluginMenu("THW Toolbox", self.action)
+        if self.settings_action:
+            self.iface.removeToolBarIcon(self.settings_action)
+            self.iface.removePluginMenu("THW Toolbox", self.settings_action)
+        if self.search_action:
+            self.iface.removeToolBarIcon(self.search_action)
+            self.iface.removePluginMenu("THW Toolbox", self.search_action)
         if self.export_action:
             self.iface.removePluginMenu("THW Toolbox", self.export_action)
 
@@ -375,6 +398,9 @@ class THWToolboxPlugin:
         if hasattr(self.iface, "layerTreeView"):
             self.iface.layerTreeView().refreshLayerSymbology(self.layer.id())
         self.canvas.refresh()
+
+    def _open_search_dialog(self):
+        NominatimSearchDialog(self.canvas, self.iface.mainWindow()).exec()
 
     def _open_config_dialog(self):
         if ConfigDialog(self.settings, self.iface.mainWindow()).exec_and_apply():

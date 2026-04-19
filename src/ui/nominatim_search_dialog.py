@@ -33,9 +33,7 @@ _MIN_QUERY_LEN = 3
 _COUNTRY_CODES = "de,at,ch"
 
 # Erkennt z.B. "Pflugstraße 7", "Hauptstr. 12a", optional gefolgt von ", Berlin" oder ", 10117 Berlin"
-_HOUSENUMBER_RE = re.compile(
-    r"^\s*(?P<street>.+?)\s+(?P<number>\d+\s*[a-zA-Z]?)\s*(?:,\s*(?P<rest>.+))?\s*$"
-)
+_HOUSENUMBER_RE = re.compile(r"^\s*(?P<street>.+?)\s+(?P<number>\d+\s*[a-zA-Z]?)\s*(?:,\s*(?P<rest>.+))?\s*$")
 
 
 def _build_query_variants(query):
@@ -113,6 +111,7 @@ class _SearchWorker(QObject):
             self.finished.emit(self._query, None, last_error)
             return
         self.finished.emit(self._query, merged, "")
+
 
 _TITLE_ROLE = Qt.ItemDataRole.UserRole + 1
 _SUBTITLE_ROLE = Qt.ItemDataRole.UserRole + 2

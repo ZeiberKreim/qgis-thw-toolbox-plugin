@@ -558,11 +558,7 @@ def _build_wms_uri(basemap: Basemap) -> str:
 def _build_vtile_uri(basemap: Basemap) -> str:
     encoded_url = quote(basemap.url, safe="")
     encoded_style = quote(basemap.style_url, safe="")
-    return (
-        f"type=xyz&url={encoded_url}"
-        f"&zmin={basemap.zmin}&zmax={basemap.zmax}"
-        f"&styleUrl={encoded_style}"
-    )
+    return f"type=xyz&url={encoded_url}&zmin={basemap.zmin}&zmax={basemap.zmax}&styleUrl={encoded_style}"
 
 
 def create_basemap_layer(basemap: Basemap):

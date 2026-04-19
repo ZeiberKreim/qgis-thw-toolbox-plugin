@@ -64,9 +64,7 @@ class TemplateDialog(QDialog):
             self._show_empty("Kein `templates/`-Ordner im Plugin gefunden.")
             return
 
-        files = sorted(
-            f for f in os.listdir(self._templates_dir) if f.lower().endswith(".qpt")
-        )
+        files = sorted(f for f in os.listdir(self._templates_dir) if f.lower().endswith(".qpt"))
         if not files:
             self._show_empty("Keine Vorlagen (.qpt) im Plugin-Ordner `templates/` vorhanden.")
             return

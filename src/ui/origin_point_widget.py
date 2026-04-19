@@ -1,4 +1,4 @@
-from qgis.PyQt.QtCore import QSize, Qt, pyqtSignal
+from qgis.PyQt.QtCore import QSize, pyqtSignal
 from qgis.PyQt.QtWidgets import QGridLayout, QPushButton, QSizePolicy, QWidget
 
 

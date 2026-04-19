@@ -1,17 +1,15 @@
 import os
 import time
 
-from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsFeatureRequest, QgsProject
+from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsProject
 from qgis.gui import QgsMapToolIdentify
 from qgis.PyQt.QtCore import Qt, QTimer
 from qgis.PyQt.QtGui import QIcon, QPixmap
 from qgis.PyQt.QtWidgets import (
     QApplication,
     QCheckBox,
-    QDialog,
     QDockWidget,
     QHBoxLayout,
-    QInputDialog,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -233,8 +231,8 @@ class FeatureDock(QDockWidget):
             northing = int(utm_point.y())
 
             return f"UTM 32N: {easting}E {northing}N"
-        except Exception as e:
-            return f"UTM 32N: Fehler"
+        except Exception:
+            return "UTM 32N: Fehler"
 
     def show_feature(self, feat, layer_manager):
         self.feat = feat
@@ -335,7 +333,7 @@ class FeatureDock(QDockWidget):
         # Checkbox auf aktuellen Wert setzen oder Standardwert verwenden
         try:
             scale_with_map = feat.attribute("scale_with_map")
-        except:
+        except Exception:
             scale_with_map = False
         self.scale_checkbox.setChecked(scale_with_map)
 
@@ -343,7 +341,7 @@ class FeatureDock(QDockWidget):
         try:
             label_text = feat.attribute("label") or ""
             show_label = feat.attribute("show_label") or False
-        except:
+        except Exception:
             label_text = ""
             show_label = False
         self.label_textfield.setText(label_text)
@@ -352,14 +350,14 @@ class FeatureDock(QDockWidget):
         # Weißer Hintergrund-Wert setzen
         try:
             white_background = feat.attribute("white_background") or False
-        except:
+        except Exception:
             white_background = False
         self.white_background_checkbox.setChecked(white_background)
 
         # Rotationswert setzen
         try:
             rotation = feat.attribute("rotation") or 0.0
-        except:
+        except Exception:
             rotation = 0.0
         rotation = ((float(rotation) + 180.0) % 360.0) - 180.0
         self.rotation_slider.setValue(int(rotation))
@@ -373,7 +371,7 @@ class FeatureDock(QDockWidget):
                 origin_x = 1
             if origin_y is None:
                 origin_y = 1
-        except:
+        except Exception:
             origin_x = 1
             origin_y = 1
         self.origin_widget.set_origin(int(origin_x), int(origin_y))

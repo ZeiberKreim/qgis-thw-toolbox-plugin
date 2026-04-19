@@ -2,7 +2,7 @@ import os
 import re
 
 from qgis.PyQt.QtCore import QMimeData, QSize, Qt
-from qgis.PyQt.QtGui import QDrag, QFont, QIcon, QPixmap
+from qgis.PyQt.QtGui import QDrag, QIcon, QPixmap
 from qgis.PyQt.QtWidgets import (
     QButtonGroup,
     QHBoxLayout,

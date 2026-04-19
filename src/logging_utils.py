@@ -16,7 +16,7 @@ _ROOT_NAME = "thw_toolbox"
 # without touching files.
 _LEVEL_ENV_VAR = "THW_TOOLBOX_LOG_LEVEL"
 _CONFIG_FILENAME = "config.ini"
-_DEFAULT_LEVEL = logging.INFO
+_DEFAULT_LEVEL = logging.ERROR
 
 _LEVEL_MAP = {
     logging.DEBUG: Qgis.MessageLevel.Info,  # Qgis has no Debug level

@@ -11,7 +11,7 @@ from qgis.PyQt.QtWidgets import QFileDialog
 # Files / dirs that ship with every export. Resources stay at plugin root,
 # Python code lives under src/, plus the QGIS plugin manifest.
 _EXPORT_DIRS = ("svgs", "icons", "src", "templates")
-_EXPORT_FILES = ("__init__.py", "metadata.txt")
+_EXPORT_FILES = ("__init__.py", "metadata.txt", "LICENSE")
 _GPKG_EXPORT_NAME = "taktische_zeichen.gpkg"
 # Subdirectory created inside the user-picked container
 _BUNDLE_DIR_NAME = "THW_Toolbox_Portable"
@@ -113,10 +113,15 @@ class PortableExporter:
     def _copy_resources(self, target_dir: str) -> None:
         plugin_out = os.path.join(target_dir, _PLUGIN_FOLDER_NAME)
         os.makedirs(plugin_out, exist_ok=True)
+        # QGIS' "Install from ZIP" rejects archives containing .pyc files,
+        # so strip bytecode caches during the copy.
+        ignore = shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo")
         for name in _EXPORT_DIRS:
             src = os.path.join(self._plugin_dir, name)
             if os.path.exists(src):
-                shutil.copytree(src, os.path.join(plugin_out, name), dirs_exist_ok=True)
+                shutil.copytree(
+                    src, os.path.join(plugin_out, name), dirs_exist_ok=True, ignore=ignore
+                )
         for name in _EXPORT_FILES:
             src = os.path.join(self._plugin_dir, name)
             if os.path.exists(src):

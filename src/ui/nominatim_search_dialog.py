@@ -92,9 +92,15 @@ class _SearchWorker(QObject):
         for variant_params, _label in _build_query_variants(self._query):
             params = {**common, **variant_params}
             url = f"{_NOMINATIM_URL}?{urllib.parse.urlencode(params)}"
+            # Defense-in-depth: urlopen accepts file:// and custom schemes by
+            # default. Pin to https so a future refactor of _NOMINATIM_URL can't
+            # accidentally open a local file or arbitrary scheme.
+            if not url.startswith("https://"):
+                last_error = "Unsichere URL abgelehnt"
+                continue
             try:
                 req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT, "Accept": "application/json"})
-                with urllib.request.urlopen(req, timeout=_REQUEST_TIMEOUT) as resp:
+                with urllib.request.urlopen(req, timeout=_REQUEST_TIMEOUT) as resp:  # noqa: S310  # scheme validated above
                     data = json.loads(resp.read().decode("utf-8"))
             except Exception as exc:
                 last_error = str(exc)

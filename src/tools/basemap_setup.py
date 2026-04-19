@@ -439,7 +439,7 @@ def _layer_source_matches(source: str, basemap: Basemap) -> bool:
         if basemap.url not in source:
             return False
         raw_layers = (basemap.wms_params or {}).get("layers", "")
-        first_layer = next((l.strip() for l in raw_layers.split(",") if l.strip()), "")
+        first_layer = next((name.strip() for name in raw_layers.split(",") if name.strip()), "")
         return (first_layer in source) if first_layer else True
     if basemap.kind == "vtile":
         return basemap.url in source or quote(basemap.url, safe="") in source
@@ -537,7 +537,7 @@ def _build_wms_uri(basemap: Basemap) -> str:
     params = basemap.wms_params or {}
     encoded_url = quote(basemap.url, safe="")
     raw_layers = params.get("layers", "")
-    layers = [l.strip() for l in raw_layers.split(",") if l.strip()]
+    layers = [name.strip() for name in raw_layers.split(",") if name.strip()]
     style = params.get("styles", "")
 
     parts = [

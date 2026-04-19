@@ -1,15 +1,12 @@
 import os
-import time
 
 from qgis.core import (
     Qgis,
-    QgsMapLayer,
     QgsProject,
 )
-from qgis.PyQt.QtCore import QSize, Qt
+from qgis.PyQt.QtCore import Qt
 from qgis.PyQt.QtGui import QIcon, QKeySequence
 from qgis.PyQt.QtWidgets import QAction, QDockWidget, QMessageBox
-from qgis.utils import iface
 
 from .export.portable_export import PortableExporter
 from .layer.feature_ops import FeatureOperations

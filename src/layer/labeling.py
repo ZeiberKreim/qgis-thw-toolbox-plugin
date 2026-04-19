@@ -116,7 +116,7 @@ def _apply_offset(label_settings: QgsPalLayerSettings, label_props) -> None:
     try:
         if hasattr(Qgis, "RenderUnit") and hasattr(Qgis.RenderUnit, "Points"):
             label_settings.offsetUnits = Qgis.RenderUnit.Points
-        size_property = QgsProperty.fromExpression("array(0,size)")
+        size_property = QgsProperty.fromExpression("array(0, size * 0.3)")
         label_props.setProperty(QgsPalLayerSettings.Property.OffsetXY, size_property)
     except Exception as e:
         logger.warning("Fehler bei der Festsetzung der Position: %s", e)

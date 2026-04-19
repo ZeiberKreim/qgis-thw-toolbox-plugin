@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.0.1]
+
+### Hinzugefügt
+- Nominatim-Suchdialog für Adress- und Ortssuche inklusive passender Icons
+- `SetupDialog` für Projekt-Status-Prüfung und Installation von Basemaps
+- `TemplateDialog` zur Auswahl und Öffnung mitgelieferter Drucklayout-Vorlagen
+- Neues Drucklayout `templates/Einsatz.qpt` inkl. Logo-Asset
+- `OriginPointWidget` zur Auswahl von Transformations-Ankerpunkten (in `FeatureDock` integriert)
+- Neue Navigationsleiste und Marker-Liste im SVG-Dock für bessere Übersicht
+
+### Verbessert
+- Projekt-Struktur grundlegend reorganisiert (`__init__.py`-Dateien, Entfernung unbenutzter Module wie Dock, DragMapTool, LayerManager, DropEventFilter, SelectionTool)
+- Maximale Icon-Größe in `ConfigDialog` und `FeatureDock` erhöht
+- Rotations-Slider im `FeatureDock` für feinere Kontrolle überarbeitet (kleinere Tick-Intervalle)
+- Qt6-Kompatibilität und Mindest-QGIS-Version auf 3.44 angehoben
+- SVG-Dateien der Schadenskonten (gelb/rot/weiß) bereinigt – redundante Pfade entfernt
+- Code-Struktur und Lesbarkeit durch mehrere Refactorings verbessert (inkl. Ruff-Lint/Format)
+
+### Behoben
+- `IdentifyTool` und `MoveTool` prüfen nun die Layer-Gültigkeit, um Laufzeitfehler bei ungültigem Layer zu vermeiden
+- Label-Offset-Berechnung für präzisere Positionierung korrigiert
+
 ## [2.0]
 
 ### Hinzugefügt

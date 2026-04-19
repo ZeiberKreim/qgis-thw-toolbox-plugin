@@ -10,21 +10,28 @@ from qgis.PyQt.QtWidgets import QFileDialog
 
 # Files / dirs that ship with every export. Resources stay at plugin root,
 # Python code lives under src/, plus the QGIS plugin manifest.
-_EXPORT_DIRS = ("svgs", "icons", "src")
+_EXPORT_DIRS = ("svgs", "icons", "src", "templates")
 _EXPORT_FILES = ("__init__.py", "metadata.txt")
 _GPKG_EXPORT_NAME = "taktische_zeichen.gpkg"
 # Subdirectory created inside the user-picked container
 _BUNDLE_DIR_NAME = "THW_Toolbox_Portable"
+# Top-level folder inside the ZIP. QGIS' "Install from ZIP" requires exactly
+# one top-level directory containing metadata.txt, so everything nests here.
+_PLUGIN_FOLDER_NAME = "qgisthwplugin"
 
 _README = """THW Toolbox Plugin - Portables Paket
 
-Installation:
-1. Entpacken Sie alle Dateien in einen Ordner
-2. Kopieren Sie den gesamten Ordner in Ihr QGIS Plugin-Verzeichnis:
+Installation (empfohlen, via QGIS):
+1. In QGIS: Plugins -> Verwalten und installieren -> Aus ZIP installieren
+2. Die ZIP-Datei auswählen und auf "Plugin installieren" klicken
+
+Installation (manuell):
+1. ZIP entpacken
+2. Den Ordner "qgisthwplugin" in Ihr QGIS Plugin-Verzeichnis kopieren:
    - Windows: %APPDATA%/QGIS/QGIS3/profiles/default/python/plugins/
    - Linux: ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/
    - macOS: ~/Library/Application Support/QGIS/QGIS3/profiles/default/python/plugins/
-3. Aktivieren Sie das Plugin in QGIS über Plugins -> Verwalten und installieren
+3. Plugin in QGIS über Plugins -> Verwalten und installieren aktivieren
 
 Verwendung:
 - Das Plugin erstellt automatisch einen Layer "THW Toolbox Marker"
@@ -33,7 +40,7 @@ Verwendung:
 
 Hinweis:
 - Alle SVG-Symbole sind im 'svgs' Ordner enthalten
-- Die GeoPackage-Datei enthält alle gesetzten Symbole mit Koordinaten
+- Die mitgelieferte GeoPackage-Datei enthält alle gesetzten Symbole mit Koordinaten
 """
 
 
@@ -104,14 +111,16 @@ class PortableExporter:
         return True
 
     def _copy_resources(self, target_dir: str) -> None:
+        plugin_out = os.path.join(target_dir, _PLUGIN_FOLDER_NAME)
+        os.makedirs(plugin_out, exist_ok=True)
         for name in _EXPORT_DIRS:
             src = os.path.join(self._plugin_dir, name)
             if os.path.exists(src):
-                shutil.copytree(src, os.path.join(target_dir, name), dirs_exist_ok=True)
+                shutil.copytree(src, os.path.join(plugin_out, name), dirs_exist_ok=True)
         for name in _EXPORT_FILES:
             src = os.path.join(self._plugin_dir, name)
             if os.path.exists(src):
-                shutil.copy2(src, target_dir)
+                shutil.copy2(src, plugin_out)
 
     def _copy_geopackage(self, target_dir: str) -> None:
         layer = self._get_layer()
@@ -119,10 +128,12 @@ class PortableExporter:
             return
         source_gpkg = layer.source().split("|")[0]
         if os.path.exists(source_gpkg):
-            shutil.copy2(source_gpkg, os.path.join(target_dir, _GPKG_EXPORT_NAME))
+            dest = os.path.join(target_dir, _PLUGIN_FOLDER_NAME, _GPKG_EXPORT_NAME)
+            shutil.copy2(source_gpkg, dest)
 
     def _write_readme(self, target_dir: str) -> None:
-        with open(os.path.join(target_dir, "README.txt"), "w", encoding="utf-8") as f:
+        readme_path = os.path.join(target_dir, _PLUGIN_FOLDER_NAME, "README.txt")
+        with open(readme_path, "w", encoding="utf-8") as f:
             f.write(_README)
 
     def _make_zip(self, target_dir: str) -> str:

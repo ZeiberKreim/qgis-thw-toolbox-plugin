@@ -428,7 +428,11 @@ class SvgDock(QWidget):
                 files = [f for f in os.listdir(folder_path) if f.endswith(".svg")]
                 # Filter anwenden, falls vorhanden
                 if file_filter:
-                    files = [f for f in files if os.path.splitext(f)[0] == file_filter or os.path.splitext(f)[0].startswith(file_filter + "_")]
+                    files = [
+                        f
+                        for f in files
+                        if os.path.splitext(f)[0] == file_filter or os.path.splitext(f)[0].startswith(file_filter + "_")
+                    ]
                 logger.info(f"Gefundene SVG-Dateien: {files}")
                 # Verwende natürliche Sortierung für Dateien
                 files.sort(key=self.natural_sort_key)

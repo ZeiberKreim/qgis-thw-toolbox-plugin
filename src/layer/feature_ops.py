@@ -207,9 +207,7 @@ class FeatureOperations:
             with open(svg_path, "r", encoding="utf-8") as f:
                 return f.read()
         except Exception as e:
-            self._error_alert(
-                "SVG-Lesefehler", "Konnte SVG-Datei nicht lesen", f"Pfad: {svg_path}\nFehler: {e}"
-            )
+            self._error_alert("SVG-Lesefehler", "Konnte SVG-Datei nicht lesen", f"Pfad: {svg_path}\nFehler: {e}")
             return None
 
     def _relative_to_plugin(self, svg_path: str) -> str:
@@ -238,9 +236,7 @@ class FeatureOperations:
 
         return max(_ADAPTIVE_MIN, min(_ADAPTIVE_MAX, size))
 
-    def _find_inserted_feature(
-        self, layer: QgsVectorLayer, draft: QgsFeature, point: QgsPointXY
-    ) -> QgsFeature | None:
+    def _find_inserted_feature(self, layer: QgsVectorLayer, draft: QgsFeature, point: QgsPointXY) -> QgsFeature | None:
         """Look up the just-inserted feature by unique_id (or path+location fallback)."""
         target_geom = QgsGeometry.fromPointXY(point)
         for feature in layer.getFeatures():

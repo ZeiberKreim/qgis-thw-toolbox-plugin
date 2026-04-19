@@ -214,9 +214,7 @@ class LayerManager:
                     "white_background",
                     feat.attribute("white_background") if "white_background" in existing_fields else False,
                 )
-                new_feat.setAttribute(
-                    "rotation", feat.attribute("rotation") if "rotation" in existing_fields else 0.0
-                )
+                new_feat.setAttribute("rotation", feat.attribute("rotation") if "rotation" in existing_fields else 0.0)
                 mem.dataProvider().addFeature(new_feat)
 
             # Remove old layer from project so QGIS releases the file lock

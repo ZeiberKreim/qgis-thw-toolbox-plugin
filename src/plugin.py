@@ -11,17 +11,17 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QDockWidget, QMessageBox
 from qgis.utils import iface
 
+from .export.portable_export import PortableExporter
 from .layer.feature_ops import FeatureOperations
 from .layer.labeling import apply_labeling
 from .layer.layer_manager import LayerManager
 from .layer.renderer import apply_renderer
+from .logging_utils import get_logger
 from .paths import plugin_root
 from .settings import THWToolboxSettings
 from .tools.canvas_drop_filter import CanvasDropFilter
 from .tools.identify_tool import IdentifyTool
 from .tools.move_tool import MoveTool
-from .export.portable_export import PortableExporter
-from .logging_utils import get_logger
 from .ui.config_dialog import ConfigDialog
 from .ui.svg_dock import SvgDock
 from .util.temp_files import cleanup_temp_files

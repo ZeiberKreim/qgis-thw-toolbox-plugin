@@ -87,7 +87,9 @@ def _origin_or_default(feat, field_name: str, present: bool) -> int:
     return 1 if value is None else value
 
 
-def _resolve_svg_layer(plugin_dir: str, svg_path: str, svg_content: str, feat_id, size: float) -> QgsSvgMarkerSymbolLayer:
+def _resolve_svg_layer(
+    plugin_dir: str, svg_path: str, svg_content: str, feat_id, size: float
+) -> QgsSvgMarkerSymbolLayer:
     """Materialize an SVG marker layer, preferring inline content over file paths."""
     if svg_content and svg_content.strip():
         temp_svg = create_temp_svg_from_content(plugin_dir, svg_content, feat_id)

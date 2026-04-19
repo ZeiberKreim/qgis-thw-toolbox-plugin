@@ -66,9 +66,7 @@ class ConfigDialog(QDialog):
         form.addRow("Fixe Standardgröße für neue Zeichen", self._spin_icon_size)
 
         # Spinbox is only relevant when fixed-size is enabled
-        self._cb_fixed_size.stateChanged.connect(
-            lambda checked: self._spin_icon_size.setEnabled(bool(checked))
-        )
+        self._cb_fixed_size.stateChanged.connect(lambda checked: self._spin_icon_size.setEnabled(bool(checked)))
         self._spin_icon_size.setEnabled(self._cb_fixed_size.isChecked())
 
         self._dropdown_crs = QComboBox()

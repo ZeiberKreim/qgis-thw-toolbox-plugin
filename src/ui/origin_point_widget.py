@@ -44,10 +44,7 @@ class OriginPointWidget(QWidget):
 
     def _button_style(self, selected):
         if selected:
-            return (
-                "QPushButton { background-color: #2E86AB; border: 1px solid #1a5276; "
-                "border-radius: 3px; }"
-            )
+            return "QPushButton { background-color: #2E86AB; border: 1px solid #1a5276; border-radius: 3px; }"
         return (
             "QPushButton { background-color: #ddd; border: 1px solid #aaa; "
             "border-radius: 3px; }"

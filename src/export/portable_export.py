@@ -119,9 +119,7 @@ class PortableExporter:
         for name in _EXPORT_DIRS:
             src = os.path.join(self._plugin_dir, name)
             if os.path.exists(src):
-                shutil.copytree(
-                    src, os.path.join(plugin_out, name), dirs_exist_ok=True, ignore=ignore
-                )
+                shutil.copytree(src, os.path.join(plugin_out, name), dirs_exist_ok=True, ignore=ignore)
         for name in _EXPORT_FILES:
             src = os.path.join(self._plugin_dir, name)
             if os.path.exists(src):

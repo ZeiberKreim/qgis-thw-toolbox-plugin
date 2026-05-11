@@ -271,8 +271,8 @@ class FeatureOperations:
             if feature.attribute("unique_id") == draft.attribute("unique_id"):
                 return feature
             if (
-                feature.attribute("svg_path") == draft.attribute("svg_path") and
-                feature.geometry().distance(target_geom) < 0.1
+                feature.attribute("svg_path") == draft.attribute("svg_path")
+                and feature.geometry().distance(target_geom) < 0.1
             ):
                 return feature
         return None

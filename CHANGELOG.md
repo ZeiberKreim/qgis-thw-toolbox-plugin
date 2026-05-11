@@ -1,12 +1,22 @@
 # Changelog
 
+## [2.1.0]
+
+### Hinzugefügt
+- **Drohnen-Export - Ebenenlayer (MBTiles)** über `DjiMbtilesExporter` für Vektor-Layer mit konfigurierbarem Zoom-Bereich
+- **MGRS-Gitter** als temporärer Memory-Linelayer in der UTM-Zone der Karte (`layout/mgrs_grid.py`)
+- **UTM-Gitter** für Drucklayouts mit einstellbaren Intervallen (`layout/utm_grid.py`)
+- **Symbolbibliothek-Import** (`tools/style_library.py`): mitgelieferte THW-SVGs werden in die QGIS-Standard-Stilbibliothek importiert (filter- und entfernbar)
+- Neues SVG-Asset für Unbemannte Luftfahrtsysteme (UAS)
+- Neues `layout`-Paket als Container für Gitter- und Stilfunktionen
+
 ## [2.0.4]
 
 ### Hinzugefügt
 - **UTM-Gitter** zur Druckkarte hinzufügen (Menüpunkt; automatische Erkennung des passenden UTM-Streifens und Intervalls)
 - **MGRS-Gitter** als temporären Layer (Toolbar-Icon + Menüpunkt; eigenes `mgrs.svg`-Icon)
-- **Drohnen-Export – Flugrouten (KMZ/KML)** über `DjiKmlExporter` mit Layer-Auswahldialog
-- **Drohnen-Export – Ebenenlayer (MBTiles)** über `DjiMbtilesExporter` mit konfigurierbarem Zoom-Bereich
+- **Drohnen-Export - Flugrouten (KMZ/KML)** über `DjiKmlExporter` mit Layer-Auswahldialog
+- **Drohnen-Export - Ebenenlayer (MBTiles)** über `DjiMbtilesExporter` mit konfigurierbarem Zoom-Bereich
 - **Mehrfach-Layer-Export** mit Fortschrittsanzeige, Abbrechen-Funktion und Sammel-Fehlerbericht
 - **Symbolbibliothek-Verwaltung** im Setup-Dialog: THW-Taktische Zeichen als QGIS-Stile importieren/entfernen (`tools/style_library.py`)
 - Neues Symbol-Asset für Unbemannte Luftfahrtsysteme (UAS)
@@ -39,7 +49,7 @@
 - Maximale Icon-Größe in `ConfigDialog` und `FeatureDock` erhöht
 - Rotations-Slider im `FeatureDock` für feinere Kontrolle überarbeitet (kleinere Tick-Intervalle)
 - Qt6-Kompatibilität und Mindest-QGIS-Version auf 3.44 angehoben
-- SVG-Dateien der Schadenskonten (gelb/rot/weiß) bereinigt – redundante Pfade entfernt
+- SVG-Dateien der Schadenskonten (gelb/rot/weiß) bereinigt - redundante Pfade entfernt
 - Code-Struktur und Lesbarkeit durch mehrere Refactorings verbessert (inkl. Ruff-Lint/Format)
 
 ### Behoben

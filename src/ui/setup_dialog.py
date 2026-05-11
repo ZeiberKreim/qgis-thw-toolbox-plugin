@@ -20,6 +20,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+from ..tools import style_library
 from ..tools.basemap_setup import (
     BASEMAPS,
     TARGET_CRS,
@@ -37,7 +38,6 @@ from ..tools.basemap_setup import (
     set_project_crs_to_target,
     zoom_to_germany,
 )
-from ..tools import style_library
 
 _OK_COLOR = "#2e7d32"
 _FAIL_COLOR = "#c62828"
@@ -187,9 +187,13 @@ class SetupDialog(QDialog):
         if clicked is cancel_btn:
             return
         if clicked is migrate_btn:
-            new_layer = self._plugin.layer_manager.reproject_to(
-                TARGET_CRS, log=lambda msg, critical=False: self._log_message(msg, critical)
-            ) if self._plugin.layer_manager else None
+            new_layer = (
+                self._plugin.layer_manager.reproject_to(
+                    TARGET_CRS, log=lambda msg, critical=False: self._log_message(msg, critical)
+                )
+                if self._plugin.layer_manager
+                else None
+            )
             if new_layer is None:
                 return
             self._plugin.on_layer_replaced(new_layer)
@@ -201,9 +205,7 @@ class SetupDialog(QDialog):
 
     def _project_has_user_content(self) -> bool:
         """True if the project has marker features or any non-marker vector layer."""
-        marker_layer = (
-            self._plugin.layer_manager.layer if self._plugin.layer_manager else None
-        )
+        marker_layer = self._plugin.layer_manager.layer if self._plugin.layer_manager else None
         if marker_layer and marker_layer.featureCount() > 0:
             return True
         for lyr in QgsProject.instance().mapLayers().values():
@@ -339,10 +341,7 @@ class SetupDialog(QDialog):
         vbox = QVBoxLayout()
         vbox.setSpacing(6)
 
-        hint = QLabel(
-            "Macht die Taktischen Zeichen projektübergreifend im "
-            "Symbol-Auswahldialog verfügbar."
-        )
+        hint = QLabel("Macht die Taktischen Zeichen projektübergreifend im Symbol-Auswahldialog verfügbar.")
         hint.setWordWrap(True)
         hint.setStyleSheet("color: gray;")
         vbox.addWidget(hint)
@@ -372,17 +371,11 @@ class SetupDialog(QDialog):
             self._styles_remove_btn.setEnabled(False)
             return
         if present == total:
-            self._set_status(
-                self._styles_status, True, f"{present} von {total} Symbolen importiert"
-            )
+            self._set_status(self._styles_status, True, f"{present} von {total} Symbolen importiert")
         elif present == 0:
-            self._set_status(
-                self._styles_status, False, f"0 von {total} Symbolen importiert"
-            )
+            self._set_status(self._styles_status, False, f"0 von {total} Symbolen importiert")
         else:
-            self._set_status(
-                self._styles_status, False, f"{present} von {total} Symbolen importiert"
-            )
+            self._set_status(self._styles_status, False, f"{present} von {total} Symbolen importiert")
         self._styles_import_btn.setEnabled(True)
         self._styles_remove_btn.setEnabled(present > 0)
 
@@ -392,9 +385,7 @@ class SetupDialog(QDialog):
             self._log_message("Keine SVGs gefunden.", critical=True)
             return
 
-        progress = QProgressDialog(
-            "Symbole werden importiert …", "Abbrechen", 0, total, self
-        )
+        progress = QProgressDialog("Symbole werden importiert …", "Abbrechen", 0, total, self)
         progress.setWindowTitle("Stilbibliothek")
         progress.setWindowModality(Qt.WindowModality.WindowModal)
         progress.setMinimumDuration(0)
@@ -403,21 +394,15 @@ class SetupDialog(QDialog):
 
         def on_progress(done: int, total_count: int) -> bool:
             progress.setValue(done)
-            progress.setLabelText(
-                f"Symbole werden importiert … ({done}/{total_count})"
-            )
+            progress.setLabelText(f"Symbole werden importiert … ({done}/{total_count})")
             QCoreApplication.processEvents()
             return not progress.wasCanceled()
 
-        written, total_done = style_library.import_styles(
-            self._plugin.plugin_dir, on_progress=on_progress
-        )
+        written, total_done = style_library.import_styles(self._plugin.plugin_dir, on_progress=on_progress)
         progress.close()
 
         if progress.wasCanceled():
-            self._log_message(
-                f"Import abgebrochen. {written} Symbole bereits geschrieben."
-            )
+            self._log_message(f"Import abgebrochen. {written} Symbole bereits geschrieben.")
         else:
             self._log_message(
                 f"{written} von {total_done} Symbolen zur Stilbibliothek hinzugefügt."

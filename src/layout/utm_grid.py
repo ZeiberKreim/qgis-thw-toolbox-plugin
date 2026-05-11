@@ -21,7 +21,18 @@ from qgis.PyQt.QtGui import QFont
 _TARGET_PAPER_CM = 5.0
 # Mögliche Gitter-Intervalle in Metern (auf runde Werte rasten)
 _NICE_INTERVALS_M = [
-    50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000,
+    50,
+    100,
+    250,
+    500,
+    1000,
+    2500,
+    5000,
+    10000,
+    25000,
+    50000,
+    100000,
+    250000,
 ]
 
 
@@ -75,18 +86,10 @@ def add_utm_grid_to_map(map_item: QgsLayoutItemMap) -> tuple[int, str]:
     grid.setAnnotationPosition(outside, QgsLayoutItemMapGrid.Top)
     grid.setAnnotationPosition(outside, QgsLayoutItemMapGrid.Bottom)
 
-    grid.setAnnotationDirection(
-        QgsLayoutItemMapGrid.Vertical, QgsLayoutItemMapGrid.Left
-    )
-    grid.setAnnotationDirection(
-        QgsLayoutItemMapGrid.VerticalDescending, QgsLayoutItemMapGrid.Right
-    )
-    grid.setAnnotationDirection(
-        QgsLayoutItemMapGrid.Horizontal, QgsLayoutItemMapGrid.Top
-    )
-    grid.setAnnotationDirection(
-        QgsLayoutItemMapGrid.Horizontal, QgsLayoutItemMapGrid.Bottom
-    )
+    grid.setAnnotationDirection(QgsLayoutItemMapGrid.Vertical, QgsLayoutItemMapGrid.Left)
+    grid.setAnnotationDirection(QgsLayoutItemMapGrid.VerticalDescending, QgsLayoutItemMapGrid.Right)
+    grid.setAnnotationDirection(QgsLayoutItemMapGrid.Horizontal, QgsLayoutItemMapGrid.Top)
+    grid.setAnnotationDirection(QgsLayoutItemMapGrid.Horizontal, QgsLayoutItemMapGrid.Bottom)
 
     grid.setAnnotationFrameDistance(1.0)
 

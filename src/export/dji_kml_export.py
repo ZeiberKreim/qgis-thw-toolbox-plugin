@@ -73,7 +73,9 @@ class DjiKmlExporter:
 
         lower = target_path.lower()
         if not (lower.endswith(".kmz") or lower.endswith(".kml")):
-            target_path += ".kml" if "kml" in selected_filter.lower() and "kmz" not in selected_filter.lower() else ".kmz"
+            target_path += (
+                ".kml" if "kml" in selected_filter.lower() and "kmz" not in selected_filter.lower() else ".kmz"
+            )
 
         return self.export(layer, target_path)
 
@@ -154,9 +156,7 @@ class DjiKmlExporter:
             '<kml xmlns="http://www.opengis.net/kml/2.2">\n'
             "<Document>\n"
             f"<name>{doc_name}</name>\n"
-            f"{style_blocks}\n"
-            + "\n".join(placemarks)
-            + "\n</Document>\n</kml>\n"
+            f"{style_blocks}\n" + "\n".join(placemarks) + "\n</Document>\n</kml>\n"
         )
 
 
@@ -242,10 +242,7 @@ def _geometry_to_placemarks(geom: QgsGeometry, style_id: str, label: str) -> lis
 
 def _placemark(label: str, style_id: str, geom_xml: str) -> str:
     name = html.escape(label)
-    return (
-        f"<Placemark><name>{name}</name><styleUrl>#{style_id}</styleUrl>"
-        f"{geom_xml}</Placemark>"
-    )
+    return f"<Placemark><name>{name}</name><styleUrl>#{style_id}</styleUrl>{geom_xml}</Placemark>"
 
 
 def _coord(x: float, y: float) -> str:
@@ -254,10 +251,7 @@ def _coord(x: float, y: float) -> str:
 
 
 def _kml_point(x: float, y: float) -> str:
-    return (
-        "<Point><altitudeMode>clampToGround</altitudeMode>"
-        f"<coordinates>{_coord(x, y)}</coordinates></Point>"
-    )
+    return f"<Point><altitudeMode>clampToGround</altitudeMode><coordinates>{_coord(x, y)}</coordinates></Point>"
 
 
 def _kml_linestring(points) -> str:

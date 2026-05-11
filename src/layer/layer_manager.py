@@ -132,8 +132,7 @@ class LayerManager:
                 self._error_alert(
                     "Layer-Erstellungsfehler",
                     "Konnte Felder nicht zum Memory-Layer hinzufügen.",
-                    f"Felder: {expected_names}\n"
-                    "Vermutete Ursache: Qt6/QGIS-4 Inkompatibilität bei Feldtypen.",
+                    f"Felder: {expected_names}\nVermutete Ursache: Qt6/QGIS-4 Inkompatibilität bei Feldtypen.",
                 )
                 return None
             mem.updateFields()
@@ -413,9 +412,7 @@ class LayerManager:
             opts.layerName = GPKG_LAYER_NAME
             opts.actionOnExistingFile = QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteFile
 
-            result = QgsVectorFileWriter.writeAsVectorFormatV3(
-                mem, migrate_gpkg, proj.transformContext(), opts
-            )
+            result = QgsVectorFileWriter.writeAsVectorFormatV3(mem, migrate_gpkg, proj.transformContext(), opts)
             if result[0] != QgsVectorFileWriter.WriterError.NoError:
                 if log:
                     log(f"Konnte reprojizierten Layer nicht schreiben: {result[1]}", True)
@@ -425,8 +422,7 @@ class LayerManager:
             if not os.path.exists(written_path):
                 if log:
                     log(
-                        "Migrations-Datei wurde nicht erzeugt "
-                        f"(erwartet: {written_path}).",
+                        f"Migrations-Datei wurde nicht erzeugt (erwartet: {written_path}).",
                         True,
                     )
                 return None

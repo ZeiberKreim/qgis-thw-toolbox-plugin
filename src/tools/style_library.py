@@ -179,8 +179,7 @@ def import_styles(
 
     if failed:
         QgsMessageLog.logMessage(
-            f"THW Toolbox: {len(failed)} Symbole konnten nicht geschrieben werden. "
-            f"Erstes Beispiel: {failed[0]}",
+            f"THW Toolbox: {len(failed)} Symbole konnten nicht geschrieben werden. Erstes Beispiel: {failed[0]}",
             "THW Toolbox",
             Qgis.MessageLevel.Warning,
         )

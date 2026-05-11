@@ -24,13 +24,14 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from .export.dji_kml_export import DjiKmlExporter
-from .export.dji_mbtiles_export import DjiMbtilesExporter, _ZoomDialog as _MbtilesZoomDialog
+from .export.dji_mbtiles_export import DjiMbtilesExporter
+from .export.dji_mbtiles_export import _ZoomDialog as _MbtilesZoomDialog
 from .export.portable_export import PortableExporter
 from .layer.feature_ops import FeatureOperations
-from .layout.mgrs_grid import build_mgrs_grid_layer
 from .layer.labeling import apply_labeling
 from .layer.layer_manager import LayerManager
 from .layer.renderer import apply_renderer
+from .layout.mgrs_grid import build_mgrs_grid_layer
 from .logging_utils import get_logger
 from .paths import plugin_root
 from .settings import THWToolboxSettings
@@ -149,9 +150,7 @@ class THWToolboxPlugin:
 
         # MGRS-Gitter als temporären Layer hinzufügen
         mgrs_icon = QIcon(os.path.join(self.plugin_dir, "icons", "mgrs.svg"))
-        self.mgrs_grid_action = QAction(
-            mgrs_icon, "MGRS-Gitter temporär hinzufügen", self.iface.mainWindow()
-        )
+        self.mgrs_grid_action = QAction(mgrs_icon, "MGRS-Gitter temporär hinzufügen", self.iface.mainWindow())
         self.mgrs_grid_action.triggered.connect(self._add_mgrs_grid_layer)
         self.iface.addToolBarIcon(self.mgrs_grid_action)
         self.iface.addPluginToMenu("THW Toolbox", self.mgrs_grid_action)
@@ -171,15 +170,11 @@ class THWToolboxPlugin:
         self.iface.addPluginToMenu("THW Toolbox", self.export_action)
 
         # Drohnen-Export: Flugrouten (KMZ/KML) und Ebenenlayer (MBTiles)
-        self.dji_export_action = QAction(
-            "Flugrouten für Drohne exportieren (KMZ)", self.iface.mainWindow()
-        )
+        self.dji_export_action = QAction("Flugrouten für Drohne exportieren (KMZ)", self.iface.mainWindow())
         self.dji_export_action.triggered.connect(self._export_selected_layer_as_dji)
         self.iface.addPluginToMenu("THW Toolbox", self.dji_export_action)
 
-        self.dji_mbtiles_action = QAction(
-            "Ebenenlayer für Drohne exportieren (MBTiles)", self.iface.mainWindow()
-        )
+        self.dji_mbtiles_action = QAction("Ebenenlayer für Drohne exportieren (MBTiles)", self.iface.mainWindow())
         self.dji_mbtiles_action.triggered.connect(self._export_selected_layer_as_mbtiles)
         self.iface.addPluginToMenu("THW Toolbox", self.dji_mbtiles_action)
 
@@ -627,9 +622,7 @@ class THWToolboxPlugin:
             self._show_error_alert("MGRS-Gitter", message, None)
             return
         QgsProject.instance().addMapLayer(layer)
-        self.iface.messageBar().pushMessage(
-            "MGRS-Gitter", message, Qgis.MessageLevel.Success
-        )
+        self.iface.messageBar().pushMessage("MGRS-Gitter", message, Qgis.MessageLevel.Success)
 
     def _open_setup_dialog(self):
         SetupDialog(self, self.iface.mainWindow()).exec()
@@ -649,8 +642,7 @@ class THWToolboxPlugin:
         """
         project = QgsProject.instance()
         vector_layers = [
-            lyr for lyr in project.mapLayers().values()
-            if isinstance(lyr, QgsVectorLayer) and lyr.isValid()
+            lyr for lyr in project.mapLayers().values() if isinstance(lyr, QgsVectorLayer) and lyr.isValid()
         ]
         if not vector_layers:
             self._show_error_alert(
@@ -726,9 +718,7 @@ class THWToolboxPlugin:
         if not os.path.isdir(initial_dir):
             initial_dir = os.path.expanduser("~")
         initial_path = os.path.join(initial_dir, _safe_filename(layer.name()) + "." + ext)
-        path, _ = QFileDialog.getSaveFileName(
-            self.iface.mainWindow(), "Datei speichern", initial_path, file_filter
-        )
+        path, _ = QFileDialog.getSaveFileName(self.iface.mainWindow(), "Datei speichern", initial_path, file_filter)
         if not path:
             return None
         lower = path.lower()
@@ -755,9 +745,7 @@ class THWToolboxPlugin:
         the algorithm's feedback loop.
         """
         total = len(layers)
-        progress = QProgressDialog(
-            "Export wird vorbereitet …", "Abbrechen", 0, total * 100, self.iface.mainWindow()
-        )
+        progress = QProgressDialog("Export wird vorbereitet …", "Abbrechen", 0, total * 100, self.iface.mainWindow())
         progress.setWindowTitle(title)
         progress.setWindowModality(Qt.WindowModality.WindowModal)
         progress.setMinimumDuration(0)
@@ -818,9 +806,7 @@ class THWToolboxPlugin:
             detail = "\n".join(f"• {name}: {err}" for name, err in failures)
             self._show_error_alert(title, "Keiner der Layer konnte exportiert werden", detail)
         else:
-            self.iface.messageBar().pushMessage(
-                title, "Abgebrochen.", Qgis.MessageLevel.Warning
-            )
+            self.iface.messageBar().pushMessage(title, "Abgebrochen.", Qgis.MessageLevel.Warning)
 
     def _export_portable_package(self):
         """Menüpunkt-Handler: Dialog öffnen und Export durchführen."""
@@ -855,9 +841,7 @@ class _LayerPickDialog(QDialog):
         for lyr in layers:
             item = QListWidgetItem(lyr.name())
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            item.setCheckState(
-                Qt.CheckState.Checked if lyr.id() == active_id else Qt.CheckState.Unchecked
-            )
+            item.setCheckState(Qt.CheckState.Checked if lyr.id() == active_id else Qt.CheckState.Unchecked)
             self._list.addItem(item)
         layout.addWidget(self._list)
 
@@ -871,9 +855,7 @@ class _LayerPickDialog(QDialog):
         btn_row.addWidget(select_none)
         layout.addLayout(btn_row)
 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)

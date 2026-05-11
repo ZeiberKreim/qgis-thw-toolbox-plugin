@@ -102,11 +102,13 @@ def build_mgrs_grid_layer(
     layer_name = f"MGRS {interval} m {zone}{band} {square_center}"
     layer = QgsVectorLayer(f"LineString?crs={utm_crs.authid()}", layer_name, "memory")
     provider = layer.dataProvider()
-    provider.addAttributes([
-        QgsField("kind", QVariant.String),
-        QgsField("label", QVariant.String),
-        QgsField("mgrs", QVariant.String),
-    ])
+    provider.addAttributes(
+        [
+            QgsField("kind", QVariant.String),
+            QgsField("label", QVariant.String),
+            QgsField("mgrs", QVariant.String),
+        ]
+    )
     layer.updateFields()
 
     digits = max(1, 5 - int(round(math.log10(interval))))  # 1000→2, 100→3, 10→4
@@ -119,9 +121,7 @@ def build_mgrs_grid_layer(
         label = f"{km_e:0{digits}d}"
         square = _mgrs_100km(zone, max(x, 100_000), (y_min + y_max) / 2)
         f = QgsFeature(layer.fields())
-        f.setGeometry(
-            QgsGeometry.fromPolylineXY([QgsPointXY(x, y_min), QgsPointXY(x, y_max)])
-        )
+        f.setGeometry(QgsGeometry.fromPolylineXY([QgsPointXY(x, y_min), QgsPointXY(x, y_max)]))
         f.setAttributes(["east", label, f"{zone}{band} {square} E{label}"])
         features.append(f)
         x += interval
@@ -132,9 +132,7 @@ def build_mgrs_grid_layer(
         label = f"{km_n:0{digits}d}"
         square = _mgrs_100km(zone, (x_min + x_max) / 2, y)
         f = QgsFeature(layer.fields())
-        f.setGeometry(
-            QgsGeometry.fromPolylineXY([QgsPointXY(x_min, y), QgsPointXY(x_max, y)])
-        )
+        f.setGeometry(QgsGeometry.fromPolylineXY([QgsPointXY(x_min, y), QgsPointXY(x_max, y)]))
         f.setAttributes(["north", label, f"{zone}{band} {square} N{label}"])
         features.append(f)
         y += interval

@@ -34,7 +34,6 @@ _DEFAULT_ZOOM_MAX = 19
 
 
 class _ProgressFeedback(QgsProcessingFeedback):
-
     def __init__(
         self,
         on_update: Callable[[int, str], None] | None,
@@ -64,7 +63,6 @@ class _ProgressFeedback(QgsProcessingFeedback):
 
 
 class DjiMbtilesExporter:
-
     def __init__(
         self,
         on_success: Callable[[str], None],
@@ -129,8 +127,7 @@ class DjiMbtilesExporter:
             return False
 
         self._on_progress(
-            f"Erzeuge MBTiles für „{layer.name()}“ (Zoom {zoom_min}–{zoom_max}) — "
-            "das kann einige Minuten dauern …"
+            f"Erzeuge MBTiles für „{layer.name()}“ (Zoom {zoom_min}–{zoom_max}) — das kann einige Minuten dauern …"
         )
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         # The `native:tilesxyzmbtiles` algorithm renders whatever is visible
@@ -157,7 +154,10 @@ class DjiMbtilesExporter:
 
             logger.info(
                 "MBTiles-Export gestartet: %s (Zoom %d-%d, Solo-Layer %s)",
-                target_path, zoom_min, zoom_max, layer.id(),
+                target_path,
+                zoom_min,
+                zoom_max,
+                layer.id(),
             )
             feedback = _ProgressFeedback(self._on_feedback, self._on_cancel_check)
             processing.run("native:tilesxyzmbtiles", params, feedback=feedback)
@@ -242,9 +242,7 @@ class _ZoomDialog(QDialog):
         )
         info.setWordWrap(True)
 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 

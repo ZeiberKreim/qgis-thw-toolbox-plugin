@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.0.4]
+
+### Hinzugefügt
+- **UTM-Gitter** zur Druckkarte hinzufügen (Menüpunkt; automatische Erkennung des passenden UTM-Streifens und Intervalls)
+- **MGRS-Gitter** als temporären Layer (Toolbar-Icon + Menüpunkt; eigenes `mgrs.svg`-Icon)
+- **Drohnen-Export – Flugrouten (KMZ/KML)** über `DjiKmlExporter` mit Layer-Auswahldialog
+- **Drohnen-Export – Ebenenlayer (MBTiles)** über `DjiMbtilesExporter` mit konfigurierbarem Zoom-Bereich
+- **Mehrfach-Layer-Export** mit Fortschrittsanzeige, Abbrechen-Funktion und Sammel-Fehlerbericht
+- **Symbolbibliothek-Verwaltung** im Setup-Dialog: THW-Taktische Zeichen als QGIS-Stile importieren/entfernen (`tools/style_library.py`)
+- Neues Symbol-Asset für Unbemannte Luftfahrtsysteme (UAS)
+
+### Verbessert
+- **Portable Export**: überarbeitete Installationsanleitung und robusteres Kopieren der Ressourcen
+- Logging-Level beim Portable Export auf `ERROR` reduziert (weniger Rauschen)
+- **Qt6 / QGIS-4-Kompatibilität** für Feldtypen: bevorzugt `QMetaType.Type`, fällt sauber auf `QVariant.Type` zurück (verhindert stilles Verschwinden des `Bool`-Feldes beim Schema-Aufbau)
+- Migration auf `QgsVectorFileWriter.writeAsVectorFormatV2` → `V3`
+- Klarere, sichtbare Fehlermeldungen bei Layer-Schema-Erweiterung sowie bei Memory- und GeoPackage-Layer-Erstellung (statt stillem Drop einzelner Felder)
+- Menüeinträge gekürzt: „THW Toolbox Setup/Einstellungen“ → „Toolbox Setup/Einstellungen“
+
+### Behoben
+- Stille `addAttribute`-Fehler beim Schema-Update werden jetzt erkannt und gemeldet
+- Layer-Erstellung schlägt mit klarer Meldung fehl, wenn erwartete Felder im neuen Memory- oder GeoPackage-Layer fehlen
+- Korrigierte Bandit-Annotation (`# nosec B310`) für den Nominatim-Request
+
 ## [2.0.1]
 
 ### Hinzugefügt

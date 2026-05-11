@@ -1,9 +1,23 @@
 from qgis.core import QgsField
 from qgis.PyQt.QtCore import QVariant
 
-# Qt6 compatibility: QVariant.Bool was removed in Qt6/PyQt6.
-# Booleans are stored as integers in most backends, so Int is a safe fallback.
-QVARIANT_BOOL = getattr(QVariant, "Bool", QVariant.Int)
+# Qt6 compatibility: prefer QMetaType.Type (QGIS 4 / Qt6 native), fall back to
+# QVariant.Type for QGIS 3 / Qt5. Some PyQt6 builds shipped with QGIS 4 are
+# missing several QVariant.Type values (notably Bool), so addAttributes() can
+# silently drop fields whose type constant resolves to something invalid —
+# leaving the GeoPackage with just the implicit `fid` column.
+try:
+    from qgis.PyQt.QtCore import QMetaType
+
+    _T_STRING = QMetaType.Type.QString
+    _T_INT = QMetaType.Type.Int
+    _T_DOUBLE = QMetaType.Type.Double
+    _T_BOOL = QMetaType.Type.Bool
+except (ImportError, AttributeError):
+    _T_STRING = QVariant.String
+    _T_INT = QVariant.Int
+    _T_DOUBLE = QVariant.Double
+    _T_BOOL = getattr(QVariant, "Bool", QVariant.Int)
 
 
 # Single source of truth for the THW Toolbox feature schema.
@@ -11,18 +25,18 @@ QVARIANT_BOOL = getattr(QVariant, "Bool", QVariant.Int)
 # from this list. Order matters for layer creation; do not reorder
 # without handling existing GeoPackage migration.
 LAYER_FIELDS: list[tuple[str, object]] = [
-    ("name", QVariant.String),
-    ("svg_path", QVariant.String),
-    ("svg_content", QVariant.String),
-    ("size", QVariant.Double),
-    ("scale_with_map", QVARIANT_BOOL),
-    ("unique_id", QVariant.String),
-    ("label", QVariant.String),
-    ("show_label", QVARIANT_BOOL),
-    ("white_background", QVARIANT_BOOL),
-    ("rotation", QVariant.Double),
-    ("origin_x", QVariant.Int),
-    ("origin_y", QVariant.Int),
+    ("name", _T_STRING),
+    ("svg_path", _T_STRING),
+    ("svg_content", _T_STRING),
+    ("size", _T_DOUBLE),
+    ("scale_with_map", _T_BOOL),
+    ("unique_id", _T_STRING),
+    ("label", _T_STRING),
+    ("show_label", _T_BOOL),
+    ("white_background", _T_BOOL),
+    ("rotation", _T_DOUBLE),
+    ("origin_x", _T_INT),
+    ("origin_y", _T_INT),
 ]
 
 
@@ -32,5 +46,5 @@ def build_qgs_fields() -> list[QgsField]:
 
 
 def field_types_dict() -> dict[str, object]:
-    """{field_name: QVariant.Type} for runtime field-presence checks."""
+    """{field_name: type_constant} for runtime field-presence checks."""
     return dict(LAYER_FIELDS)

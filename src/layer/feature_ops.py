@@ -188,14 +188,39 @@ class FeatureOperations:
     # ------------------------------------------------------------------
 
     def _ensure_schema(self, layer: QgsVectorLayer) -> None:
-        """Add any newer fields that are missing on this layer."""
+        """Add any newer fields that are missing on this layer.
+
+        Surfaces a clear error if a field can't be added — silent failure
+        here cascades into a confusing KeyError on `setAttribute` later.
+        """
         existing = {field.name() for field in layer.fields()}
-        missing = [QgsField(n, t) for n, t in field_types_dict().items() if n not in existing]
-        if missing:
-            layer.startEditing()
-            for field in missing:
-                layer.addAttribute(field)
-            layer.commitChanges()
+        missing = [(n, QgsField(n, t)) for n, t in field_types_dict().items() if n not in existing]
+        if not missing:
+            return
+
+        if not layer.startEditing():
+            self._error_alert(
+                "Layer-Schema-Fehler",
+                "Layer kann nicht in den Bearbeitungsmodus versetzt werden.",
+                f"Fehlende Felder: {[n for n, _ in missing]}",
+            )
+            return
+
+        failed = [n for n, field in missing if not layer.addAttribute(field)]
+        if not layer.commitChanges():
+            failed = [n for n, _ in missing]
+
+        layer.updateFields()
+
+        still_missing = [n for n, _ in missing if layer.fields().indexFromName(n) < 0]
+        if still_missing:
+            self._error_alert(
+                "Layer-Schema-Fehler",
+                "Konnte fehlende Felder nicht zum Layer hinzufügen.",
+                f"Fehlende Felder: {still_missing}\n"
+                f"addAttribute-Fehler: {failed}\n"
+                "Vermutete Ursache: Qt6/QGIS-4 Inkompatibilität bei Feldtypen.",
+            )
 
     def _read_svg(self, svg_path: str) -> str | None:
         """Read SVG file contents; surfaces errors via the alert callback."""

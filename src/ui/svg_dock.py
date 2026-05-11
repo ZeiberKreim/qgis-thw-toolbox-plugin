@@ -30,6 +30,7 @@ class SvgDock(QWidget):
         settings_callback,
         layer_provider=None,
         navigate_callback=None,
+        progress_callback=None,
     ):
         super().__init__()
         self.plugin_dir = plugin_dir
@@ -37,6 +38,7 @@ class SvgDock(QWidget):
         self.layer_provider = layer_provider
         self.navigate_callback = navigate_callback
         self.icon_cache = {}  # Cache für Icons
+        self._initial_progress_callback = progress_callback
 
         logger.info(f"Initialisiere SvgDock mit Plugin-Verzeichnis: {plugin_dir}")
 
@@ -172,7 +174,7 @@ class SvgDock(QWidget):
         """)
         layout.addWidget(self.treeWidget)
 
-        self.populate_root_folders()
+        self.populate_root_folders(progress_callback=self._initial_progress_callback)
         self.treeWidget.itemPressed.connect(self.on_item_pressed)
         self.treeWidget.itemExpanded.connect(self.on_item_expanded)
 
@@ -341,7 +343,7 @@ class SvgDock(QWidget):
         }
         return categories
 
-    def populate_root_folders(self):
+    def populate_root_folders(self, progress_callback=None):
         self.treeWidget.clear()
         self.treeWidget.setSortingEnabled(False)
 
@@ -354,6 +356,10 @@ class SvgDock(QWidget):
             return
 
         categories = self.get_category_folders()
+        # Items in eager-loaded categories (Allgemein/THW) whose SVG files we
+        # still need to populate — collected so we can report per-subfolder
+        # progress in a second pass.
+        pending_loads: list[QTreeWidgetItem] = []
 
         for category, subcategories in categories.items():
             category_item = QTreeWidgetItem(self.treeWidget)
@@ -397,8 +403,7 @@ class SvgDock(QWidget):
                     if child.childCount() > 0 and child.child(0).text(0) != "Laden...":
                         self.treeWidget.expandItem(child)
                         for j in range(child.childCount()):
-                            subchild = child.child(j)
-                            self.populate_svg_files(subchild)
+                            pending_loads.append(child.child(j))
                     else:
                         folder_name = child.data(0, Qt.ItemDataRole.UserRole)
                         if folder_name:
@@ -411,10 +416,17 @@ class SvgDock(QWidget):
                                     self.populate_subfolders(child, folder_path, subdirs)
                                     self.treeWidget.expandItem(child)
                                     for j in range(child.childCount()):
-                                        subchild = child.child(j)
-                                        self.populate_svg_files(subchild)
+                                        pending_loads.append(child.child(j))
                                 else:
-                                    self.populate_svg_files(child)
+                                    pending_loads.append(child)
+
+        total = len(pending_loads)
+        for idx, item in enumerate(pending_loads):
+            if progress_callback:
+                progress_callback(idx, total, item.text(0))
+            self.populate_svg_files(item)
+        if progress_callback:
+            progress_callback(total, total, "")
 
     def on_item_expanded(self, item):
         if item.childCount() == 1 and item.child(0).text(0) == "Laden...":

@@ -4,7 +4,15 @@ import time
 import uuid
 from collections.abc import Callable
 
-from qgis.core import QgsFeature, QgsProject, QgsVectorFileWriter, QgsVectorLayer
+from qgis.core import (
+    QgsCoordinateReferenceSystem,
+    QgsCoordinateTransform,
+    QgsFeature,
+    QgsGeometry,
+    QgsProject,
+    QgsVectorFileWriter,
+    QgsVectorLayer,
+)
 
 from ..logging_utils import get_logger
 from .fields import build_qgs_fields
@@ -115,15 +123,35 @@ class LayerManager:
         try:
             os.makedirs(os.path.dirname(gpkg), exist_ok=True)
 
+            expected_fields = build_qgs_fields()
+            expected_names = [f.name() for f in expected_fields]
+
             mem = QgsVectorLayer(f"Point?crs={crs}", "temp", "memory")
             dp = mem.dataProvider()
-            dp.addAttributes(build_qgs_fields())
+            if not dp.addAttributes(expected_fields):
+                self._error_alert(
+                    "Layer-Erstellungsfehler",
+                    "Konnte Felder nicht zum Memory-Layer hinzufügen.",
+                    f"Felder: {expected_names}\n"
+                    "Vermutete Ursache: Qt6/QGIS-4 Inkompatibilität bei Feldtypen.",
+                )
+                return None
             mem.updateFields()
+
+            mem_field_names = [f.name() for f in mem.fields()]
+            missing_in_mem = [n for n in expected_names if n not in mem_field_names]
+            if missing_in_mem:
+                self._error_alert(
+                    "Layer-Erstellungsfehler",
+                    "Memory-Layer enthält nach addAttributes nicht alle erwarteten Felder.",
+                    f"Fehlend: {missing_in_mem}\nVorhanden: {mem_field_names}",
+                )
+                return None
 
             opts = QgsVectorFileWriter.SaveVectorOptions()
             opts.driverName = "GPKG"
             opts.layerName = lname
-            result = QgsVectorFileWriter.writeAsVectorFormatV2(
+            result = QgsVectorFileWriter.writeAsVectorFormatV3(
                 mem, gpkg, QgsProject.instance().transformContext(), opts
             )
 
@@ -136,7 +164,19 @@ class LayerManager:
                 return None
 
             uri = f"{gpkg}|layername={lname}"
-            return QgsVectorLayer(uri, LAYER_DISPLAY_NAME, "ogr")
+            new_layer = QgsVectorLayer(uri, LAYER_DISPLAY_NAME, "ogr")
+
+            new_field_names = [f.name() for f in new_layer.fields()]
+            missing_in_gpkg = [n for n in expected_names if n not in new_field_names]
+            if missing_in_gpkg:
+                self._error_alert(
+                    "Layer-Erstellungsfehler",
+                    "GeoPackage wurde geschrieben, aber Felder fehlen im neuen Layer.",
+                    f"Fehlend: {missing_in_gpkg}\nVorhanden: {new_field_names}\nPfad: {gpkg}",
+                )
+                return None
+
+            return new_layer
 
         except Exception as e:
             logger.exception("Fehler beim Erstellen des neuen Layers")
@@ -234,7 +274,7 @@ class LayerManager:
             opts.layerName = lname
             opts.actionOnExistingFile = QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteFile
 
-            result = QgsVectorFileWriter.writeAsVectorFormatV2(
+            result = QgsVectorFileWriter.writeAsVectorFormatV3(
                 mem, temp_gpkg, QgsProject.instance().transformContext(), opts
             )
             if result[0] != QgsVectorFileWriter.WriterError.NoError:
@@ -281,6 +321,194 @@ class LayerManager:
                 )
                 return
             logger.warning("Temporäre Datei konnte nicht verschoben werden: %s", e)
+
+    # ------------------------------------------------------------------
+    # CRS migration
+    # ------------------------------------------------------------------
+
+    def reproject_to(
+        self,
+        target_crs_authid: str,
+        log: Callable[[str, bool], None] | None = None,
+    ) -> QgsVectorLayer | None:
+        """Reproject the marker layer's geometries into ``target_crs_authid``.
+
+        Rewrites the underlying GeoPackage with the new CRS via a temp file
+        swap (same pattern as ``_update_layer_fields``). Returns the new
+        layer instance on success, or the existing one if the layer is
+        already in the target CRS or there is nothing to migrate. Returns
+        ``None`` on failure (an error message is dispatched via ``log``).
+        """
+        if not self.layer:
+            return None
+
+        target_crs = QgsCoordinateReferenceSystem(target_crs_authid)
+        if not target_crs.isValid():
+            if log:
+                log(f"Ungültiges Ziel-CRS: {target_crs_authid}", True)
+            return None
+
+        source_crs = self.layer.crs()
+        if source_crs.authid() == target_crs.authid():
+            return self.layer
+
+        proj = QgsProject.instance()
+        transform = QgsCoordinateTransform(source_crs, target_crs, proj)
+
+        if self.layer.isEditable():
+            try:
+                self.layer.commitChanges()
+            except Exception:
+                try:
+                    self.layer.rollBack()
+                except Exception:
+                    pass
+
+        gpkg = self.layer.source().split("|")[0]
+        if not os.path.exists(gpkg):
+            if log:
+                log(f"GeoPackage nicht gefunden: {gpkg}", True)
+            return None
+
+        # Use a sibling `.gpkg` path so OGR doesn't mangle the extension when
+        # writing — a `.temp` suffix can cause the writer to append `.gpkg`
+        # itself and leave us pointing at a non-existent file.
+        base, _ = os.path.splitext(gpkg)
+        migrate_gpkg = f"{base}.__migrate__.gpkg"
+
+        try:
+            mem = QgsVectorLayer(f"Point?crs={target_crs.authid()}", "temp", "memory")
+            dp = mem.dataProvider()
+            dp.addAttributes(build_qgs_fields())
+            mem.updateFields()
+
+            field_names = [f.name() for f in mem.fields()]
+            source_fields = {f.name() for f in self.layer.fields()}
+
+            for feat in self.layer.getFeatures():
+                new_feat = QgsFeature(mem.fields())
+                geom = QgsGeometry(feat.geometry())
+                if not geom.isNull():
+                    if geom.transform(transform) != 0:
+                        if log:
+                            log("Geometrie-Transformation fehlgeschlagen.", True)
+                        return None
+                new_feat.setGeometry(geom)
+                for name in field_names:
+                    if name in source_fields:
+                        new_feat.setAttribute(name, feat.attribute(name))
+                dp.addFeature(new_feat)
+
+            # Step 1: write the reprojected layer to a sibling file. Keep the
+            # original layer registered (and its file untouched) until the
+            # write actually produced a valid file on disk.
+            if os.path.exists(migrate_gpkg):
+                try:
+                    os.remove(migrate_gpkg)
+                except Exception:
+                    pass
+
+            opts = QgsVectorFileWriter.SaveVectorOptions()
+            opts.driverName = "GPKG"
+            opts.layerName = GPKG_LAYER_NAME
+            opts.actionOnExistingFile = QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteFile
+
+            result = QgsVectorFileWriter.writeAsVectorFormatV3(
+                mem, migrate_gpkg, proj.transformContext(), opts
+            )
+            if result[0] != QgsVectorFileWriter.WriterError.NoError:
+                if log:
+                    log(f"Konnte reprojizierten Layer nicht schreiben: {result[1]}", True)
+                return None
+
+            written_path = result[2] if len(result) > 2 and result[2] else migrate_gpkg
+            if not os.path.exists(written_path):
+                if log:
+                    log(
+                        "Migrations-Datei wurde nicht erzeugt "
+                        f"(erwartet: {written_path}).",
+                        True,
+                    )
+                return None
+
+            # Step 2: only NOW release the original layer's file lock and
+            # swap the migrated file over it.
+            old_id = self.layer.id()
+            QgsProject.instance().removeMapLayer(old_id)
+            self.layer = None
+            time.sleep(0.1)
+
+            if not self._move_over(written_path, gpkg):
+                # Swap failed but the migrated file is still on disk — keep
+                # the user's data by registering it under its temp name.
+                if os.path.exists(written_path):
+                    uri = f"{written_path}|layername={GPKG_LAYER_NAME}"
+                    fallback = QgsVectorLayer(uri, LAYER_DISPLAY_NAME, "ogr")
+                    if fallback.isValid():
+                        QgsProject.instance().addMapLayer(fallback)
+                        self.layer = fallback
+                        if log:
+                            log(
+                                "Migration unter Behelfsnamen gespeichert: "
+                                f"{written_path}. Bitte Projekt speichern oder "
+                                "Datei manuell umbenennen.",
+                                True,
+                            )
+                        return fallback
+                if log:
+                    log("Datei-Tausch nach Migration fehlgeschlagen.", True)
+                return None
+
+            uri = f"{gpkg}|layername={GPKG_LAYER_NAME}"
+            new_layer = QgsVectorLayer(uri, LAYER_DISPLAY_NAME, "ogr")
+            if not new_layer.isValid():
+                if log:
+                    log("Reprojizierter Layer konnte nicht geladen werden.", True)
+                return None
+            QgsProject.instance().addMapLayer(new_layer)
+            self.layer = new_layer
+            return new_layer
+
+        except Exception as e:
+            logger.exception("Fehler beim Reprojizieren des Layers")
+            if log:
+                log(f"Reprojektion fehlgeschlagen: {e}", True)
+            # If we removed the original layer before the failure, try to
+            # restore it from whichever file is still on disk.
+            if self.layer is None:
+                for candidate in (gpkg, migrate_gpkg):
+                    if os.path.exists(candidate):
+                        uri = f"{candidate}|layername={GPKG_LAYER_NAME}"
+                        restored = QgsVectorLayer(uri, LAYER_DISPLAY_NAME, "ogr")
+                        if restored.isValid():
+                            QgsProject.instance().addMapLayer(restored)
+                            self.layer = restored
+                            break
+            return None
+
+    def _move_over(self, src: str, dst: str) -> bool:
+        """Best-effort move of ``src`` over ``dst``. Returns True on success."""
+        try:
+            if os.path.exists(dst):
+                try:
+                    os.remove(dst)
+                    time.sleep(0.1)
+                except Exception as e:
+                    logger.warning("Konnte Ziel-Datei nicht löschen: %s", e)
+            shutil.move(src, dst)
+            return True
+        except Exception as e:
+            logger.warning("shutil.move %s -> %s fehlgeschlagen: %s", src, dst, e)
+            try:
+                shutil.copy2(src, dst)
+                try:
+                    os.remove(src)
+                except Exception:
+                    pass
+                return True
+            except Exception as e2:
+                logger.warning("shutil.copy2 %s -> %s fehlgeschlagen: %s", src, dst, e2)
+                return False
 
     # ------------------------------------------------------------------
     # Project-save handling

@@ -1,6 +1,7 @@
 """Setup-Dialog: Projekt-Status prüfen + Basemaps installieren."""
 
-from qgis.PyQt.QtCore import Qt
+from qgis.core import QgsProject, QgsVectorLayer
+from qgis.PyQt.QtCore import QCoreApplication, Qt
 from qgis.PyQt.QtGui import QFont
 from qgis.PyQt.QtWidgets import (
     QDialog,
@@ -10,6 +11,8 @@ from qgis.PyQt.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
+    QProgressDialog,
     QPushButton,
     QScrollArea,
     QTabWidget,
@@ -34,6 +37,7 @@ from ..tools.basemap_setup import (
     set_project_crs_to_target,
     zoom_to_germany,
 )
+from ..tools import style_library
 
 _OK_COLOR = "#2e7d32"
 _FAIL_COLOR = "#c62828"
@@ -64,6 +68,9 @@ class SetupDialog(QDialog):
 
         self._status_group = self._build_status_group()
         self._content_layout.addWidget(self._status_group)
+
+        self._styles_group = self._build_styles_group()
+        self._content_layout.addWidget(self._styles_group)
 
         self._basemaps_group = self._build_basemaps_group()
         self._content_layout.addWidget(self._basemaps_group)
@@ -151,8 +158,60 @@ class SetupDialog(QDialog):
         label.setText(f"<span style='color:{color}; font-weight:bold;'>{prefix}</span> {text}")
 
     def _fix_crs(self) -> None:
+        if not self._project_has_user_content():
+            set_project_crs_to_target()
+            self._refresh_all()
+            return
+
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle("Koordinatensystem ändern")
+        box.setText(
+            f"Projekt-CRS wird auf {TARGET_CRS} ({TARGET_CRS_LABEL}) umgestellt.\n\n"
+            "Im Projekt sind bereits Daten vorhanden. Bestehende Taktische "
+            "Zeichen können sich dadurch sichtbar verschieben."
+        )
+        box.setInformativeText(
+            "Migrieren: THW-Zeichen werden in das neue CRS umgerechnet und "
+            "neu gespeichert (Position bleibt erhalten).\n"
+            "Einfach ausführen: Nur Projekt-CRS ändern. Bestehende Zeichen "
+            "werden von QGIS on-the-fly reprojiziert."
+        )
+        cancel_btn = box.addButton("Abbrechen", QMessageBox.ButtonRole.RejectRole)
+        migrate_btn = box.addButton("Migrieren", QMessageBox.ButtonRole.AcceptRole)
+        force_btn = box.addButton("Einfach ausführen", QMessageBox.ButtonRole.DestructiveRole)
+        box.setDefaultButton(cancel_btn)
+        box.exec()
+
+        clicked = box.clickedButton()
+        if clicked is cancel_btn:
+            return
+        if clicked is migrate_btn:
+            new_layer = self._plugin.layer_manager.reproject_to(
+                TARGET_CRS, log=lambda msg, critical=False: self._log_message(msg, critical)
+            ) if self._plugin.layer_manager else None
+            if new_layer is None:
+                return
+            self._plugin.on_layer_replaced(new_layer)
+        elif clicked is not force_btn:
+            return
+
         set_project_crs_to_target()
         self._refresh_all()
+
+    def _project_has_user_content(self) -> bool:
+        """True if the project has marker features or any non-marker vector layer."""
+        marker_layer = (
+            self._plugin.layer_manager.layer if self._plugin.layer_manager else None
+        )
+        if marker_layer and marker_layer.featureCount() > 0:
+            return True
+        for lyr in QgsProject.instance().mapLayers().values():
+            if lyr is marker_layer:
+                continue
+            if isinstance(lyr, QgsVectorLayer):
+                return True
+        return False
 
     def _fix_basemap(self) -> None:
         osm = next((b for b in BASEMAPS if b.key == "osm"), None)
@@ -273,6 +332,105 @@ class SetupDialog(QDialog):
         install_connection(bm)
         self._refresh_all()
 
+    # ---------------------------------------------------------------- styles
+
+    def _build_styles_group(self) -> QGroupBox:
+        box = QGroupBox("Symbolbibliothek")
+        vbox = QVBoxLayout()
+        vbox.setSpacing(6)
+
+        hint = QLabel(
+            "Macht die Taktischen Zeichen projektübergreifend im "
+            "Symbol-Auswahldialog verfügbar."
+        )
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: gray;")
+        vbox.addWidget(hint)
+
+        row = QHBoxLayout()
+        self._styles_status = QLabel()
+        self._styles_status.setWordWrap(True)
+        row.addWidget(self._styles_status, 1)
+
+        self._styles_remove_btn = QPushButton("Stile entfernen")
+        self._styles_remove_btn.clicked.connect(self._on_remove_styles)
+        row.addWidget(self._styles_remove_btn)
+
+        self._styles_import_btn = QPushButton("Stile importieren")
+        self._styles_import_btn.clicked.connect(self._on_import_styles)
+        row.addWidget(self._styles_import_btn)
+
+        vbox.addLayout(row)
+        box.setLayout(vbox)
+        return box
+
+    def _refresh_styles(self) -> None:
+        present, total = style_library.status(self._plugin.plugin_dir)
+        if total == 0:
+            self._set_status(self._styles_status, False, "Keine SVGs gefunden")
+            self._styles_import_btn.setEnabled(False)
+            self._styles_remove_btn.setEnabled(False)
+            return
+        if present == total:
+            self._set_status(
+                self._styles_status, True, f"{present} von {total} Symbolen importiert"
+            )
+        elif present == 0:
+            self._set_status(
+                self._styles_status, False, f"0 von {total} Symbolen importiert"
+            )
+        else:
+            self._set_status(
+                self._styles_status, False, f"{present} von {total} Symbolen importiert"
+            )
+        self._styles_import_btn.setEnabled(True)
+        self._styles_remove_btn.setEnabled(present > 0)
+
+    def _on_import_styles(self) -> None:
+        _, total = style_library.status(self._plugin.plugin_dir)
+        if total == 0:
+            self._log_message("Keine SVGs gefunden.", critical=True)
+            return
+
+        progress = QProgressDialog(
+            "Symbole werden importiert …", "Abbrechen", 0, total, self
+        )
+        progress.setWindowTitle("Stilbibliothek")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setValue(0)
+        QCoreApplication.processEvents()
+
+        def on_progress(done: int, total_count: int) -> bool:
+            progress.setValue(done)
+            progress.setLabelText(
+                f"Symbole werden importiert … ({done}/{total_count})"
+            )
+            QCoreApplication.processEvents()
+            return not progress.wasCanceled()
+
+        written, total_done = style_library.import_styles(
+            self._plugin.plugin_dir, on_progress=on_progress
+        )
+        progress.close()
+
+        if progress.wasCanceled():
+            self._log_message(
+                f"Import abgebrochen. {written} Symbole bereits geschrieben."
+            )
+        else:
+            self._log_message(
+                f"{written} von {total_done} Symbolen zur Stilbibliothek hinzugefügt."
+                " Hinweis: Symbol-Auswahldialog ggf. neu öffnen.",
+                critical=written == 0,
+            )
+        self._refresh_all()
+
+    def _on_remove_styles(self) -> None:
+        removed = style_library.remove_styles(self._plugin.plugin_dir)
+        self._log_message(f"{removed} Symbole aus der Stilbibliothek entfernt.")
+        self._refresh_all()
+
     # ---------------------------------------------------------------- util
 
     def _log_message(self, msg: str, critical: bool = False) -> None:
@@ -287,4 +445,5 @@ class SetupDialog(QDialog):
 
     def _refresh_all(self) -> None:
         self._refresh_status()
+        self._refresh_styles()
         self._refresh_basemaps()

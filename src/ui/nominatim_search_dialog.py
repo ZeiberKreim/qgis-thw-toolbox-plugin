@@ -100,7 +100,7 @@ class _SearchWorker(QObject):
                 continue
             try:
                 req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT, "Accept": "application/json"})
-                with urllib.request.urlopen(req, timeout=_REQUEST_TIMEOUT) as resp:  # noqa: S310  # scheme validated above
+                with urllib.request.urlopen(req, timeout=_REQUEST_TIMEOUT) as resp:  # nosec B310 - scheme validated to https above
                     data = json.loads(resp.read().decode("utf-8"))
             except Exception as exc:
                 last_error = str(exc)
@@ -187,7 +187,7 @@ class NominatimSearchDialog(QDialog):
     def __init__(self, canvas, parent=None):
         super().__init__(parent)
         self._canvas = canvas
-        self.setWindowTitle("Adresse suchen")
+        self.setWindowTitle("Adresse suchen (Nominatim / OpenStreetMap)")
         self.resize(550, 450)
 
         layout = QVBoxLayout(self)

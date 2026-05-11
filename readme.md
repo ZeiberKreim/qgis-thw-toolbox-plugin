@@ -227,6 +227,40 @@ Dieses Plugin steht unter der **MIT-Lizenz**. Siehe `LICENSE` für Details.
 
 ---
 
+## Entwicklung
+
+### Dev-Abhängigkeiten installieren
+
+```powershell
+pip install -r requirements-dev.txt
+```
+
+### Security-Scan (Bandit)
+
+Sucht nach typischen Python-Sicherheitsproblemen (SQL-Injection, unsichere Funktionen, hardcodierte Passwörter usw.):
+
+```powershell
+bandit -r src
+```
+
+Nützliche Flags:
+
+- `-ll` — nur Medium+ Severity zeigen
+- `-f json -o bandit.json` — Report als JSON speichern
+
+False-Positives lassen sich mit `# nosec <BXXX>` an der betroffenen Zeile unterdrücken (immer mit kurzem Kommentar, warum es sicher ist).
+
+### Lint & Format (Ruff)
+
+```powershell
+ruff check --fix .
+ruff format .
+```
+
+Läuft auch automatisch über den Pre-Commit-Hook (`.pre-commit-config.yaml`).
+
+---
+
 ## Beitragen
 
 Verbesserungsvorschläge, Bug-Reports und Pull Requests sind herzlich willkommen!

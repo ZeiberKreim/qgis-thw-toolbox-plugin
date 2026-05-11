@@ -178,8 +178,8 @@ class FeatureDock(QDockWidget):
             if getattr(self, "last_preview_path", None) and os.path.exists(self.last_preview_path):
                 os.remove(self.last_preview_path)
                 self.last_preview_path = None
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Konnte Preview-Datei %s nicht löschen: %s", getattr(self, "last_preview_path", None), e)
 
         self.svg_label.clear()
         self.svg_label.setText("Kein Marker ausgewählt")
@@ -436,8 +436,8 @@ class FeatureDock(QDockWidget):
                 if getattr(self, "last_preview_path", None) and os.path.exists(self.last_preview_path):
                     os.remove(self.last_preview_path)
                     self.last_preview_path = None
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Konnte vorherige Preview-Datei %s nicht löschen: %s", getattr(self, "last_preview_path", None), e)
 
             # Erstelle temporäres Verzeichnis falls es nicht existiert
             temp_dir = os.path.join(plugin_root(), "temp_files", "preview_cache")
@@ -570,8 +570,8 @@ class FeatureDock(QDockWidget):
             if getattr(self, "last_preview_path", None) and os.path.exists(self.last_preview_path):
                 os.remove(self.last_preview_path)
                 self.last_preview_path = None
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Konnte Preview-Datei beim Verstecken nicht löschen %s: %s", getattr(self, "last_preview_path", None), e)
 
         super().hideEvent(event)
 

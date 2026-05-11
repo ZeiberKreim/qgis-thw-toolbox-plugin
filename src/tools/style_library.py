@@ -27,6 +27,10 @@ from qgis.core import (
     QgsSvgMarkerSymbolLayer,
 )
 
+from ..logging_utils import get_logger
+
+logger = get_logger(__name__)
+
 THW_TAG = "THW"
 DEFAULT_SIZE_MM = 8.0
 
@@ -131,8 +135,8 @@ def _save_symbol_to_style(
     if sid > 0:
         try:
             style.remove(QgsStyle.StyleEntity.SymbolEntity, sid)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Konnte alten Symbol-Eintrag %s (id=%s) nicht entfernen: %s", name, sid, e)
     try:
         return bool(style.saveSymbol(name, symbol.clone(), False, list(tags)))
     except Exception as exc:
@@ -216,8 +220,9 @@ def rehydrate_cache(plugin_dir: str) -> int:
     try:
         with sqlite3.connect(db_path) as con:
             placeholders = ",".join("?" * len(name_to_path))
+            # placeholders is only "?,?,?…" derived from len() — values are bound below.
             cur = con.execute(
-                f"SELECT name FROM symbol WHERE name IN ({placeholders})",
+                f"SELECT name FROM symbol WHERE name IN ({placeholders})",  # nosec B608
                 list(name_to_path.keys()),
             )
             db_present = {row[0] for row in cur}
@@ -281,7 +286,7 @@ def remove_styles(plugin_dir: str) -> int:
         except Exception:
             try:
                 style.removeTag(tag_id)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Konnte Tag id=%s nicht entfernen: %s", tag_id, e)
 
     return removed

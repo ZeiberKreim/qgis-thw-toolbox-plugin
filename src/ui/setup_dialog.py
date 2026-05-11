@@ -20,6 +20,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+from ..logging_utils import get_logger
 from ..tools import style_library
 from ..tools.basemap_setup import (
     BASEMAPS,
@@ -38,6 +39,8 @@ from ..tools.basemap_setup import (
     set_project_crs_to_target,
     zoom_to_germany,
 )
+
+logger = get_logger(__name__)
 
 _OK_COLOR = "#2e7d32"
 _FAIL_COLOR = "#c62828"
@@ -425,8 +428,8 @@ class SetupDialog(QDialog):
 
             level = Qgis.MessageLevel.Critical if critical else Qgis.MessageLevel.Info
             iface.messageBar().pushMessage("THW Setup", msg, level=level)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Konnte Setup-Meldung nicht anzeigen: %s", e)
 
     def _refresh_all(self) -> None:
         self._refresh_status()

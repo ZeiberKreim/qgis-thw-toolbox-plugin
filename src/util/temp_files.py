@@ -124,8 +124,8 @@ def create_temp_svg_from_content(plugin_dir: str, svg_content: str, feature_id) 
             for old in cached[:-_SVG_CACHE_KEEP]:
                 try:
                     os.remove(os.path.join(cache_dir, old))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Konnte alte Cache-Datei %s nicht löschen: %s", old, e)
 
         return temp_path
     except Exception as e:

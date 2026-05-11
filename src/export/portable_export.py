@@ -1,12 +1,16 @@
 import os
 import platform
 import shutil
-import subprocess
+import subprocess  # nosec B404 — only used for OS-standard "reveal in file manager" calls
 import zipfile
 from collections.abc import Callable
 
 from qgis.core import QgsVectorLayer
 from qgis.PyQt.QtWidgets import QFileDialog
+
+from ..logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 # Files / dirs that ship with every export. Resources stay at plugin root,
 # Python code lives under src/, plus the QGIS plugin manifest.
@@ -155,14 +159,15 @@ def _reveal_in_file_manager(file_path: str) -> None:
     Windows/macOS support reveal-and-select; Linux's xdg-open only opens
     folders, so we fall back to opening the parent directory.
     """
+    # OS-Standard-Befehle; file_path stammt aus der eigenen Export-Logik, nicht aus User-Input.
     try:
         system = platform.system()
         if system == "Windows":
             # /select,<path> — comma, no space; explorer is picky about quoting
-            subprocess.run(["explorer", f"/select,{file_path}"])
+            subprocess.run(["explorer", f"/select,{file_path}"])  # nosec B603 B607
         elif system == "Darwin":
-            subprocess.run(["open", "-R", file_path])
+            subprocess.run(["open", "-R", file_path])  # nosec B603 B607
         else:
-            subprocess.run(["xdg-open", os.path.dirname(file_path)])
-    except Exception:
-        pass
+            subprocess.run(["xdg-open", os.path.dirname(file_path)])  # nosec B603 B607
+    except Exception as e:
+        logger.debug("Reveal in file manager failed for %s: %s", file_path, e)

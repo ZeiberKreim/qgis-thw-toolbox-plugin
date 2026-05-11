@@ -20,6 +20,10 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QSettings
 
+from ..logging_utils import get_logger
+
+logger = get_logger(__name__)
+
 TARGET_CRS = "EPSG:25832"
 TARGET_CRS_LABEL = "ETRS89 / UTM Zone 32N"
 
@@ -485,8 +489,8 @@ def reload_browser() -> None:
 
         if iface is not None and hasattr(iface, "reloadConnections"):
             iface.reloadConnections()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Browser reloadConnections failed: %s", e)
 
 
 def install_connection(basemap: Basemap) -> None:
@@ -603,8 +607,8 @@ def add_basemap_to_project(basemap: Basemap, log: Optional[Callable[[str], None]
             err = ""
             try:
                 err = layer.error().summary() if layer else ""
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Konnte Layer-Fehlertext nicht lesen: %s", e)
             detail = f" – {err}" if err else ""
             log(f"Layer '{basemap.name}' konnte nicht geladen werden{detail}.")
         return False

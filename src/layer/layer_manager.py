@@ -211,8 +211,8 @@ class LayerManager:
                 except Exception:
                     try:
                         old_layer.rollBack()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("rollBack on old layer failed: %s", e)
 
             crs = self.canvas.mapSettings().destinationCrs().authid()
             mem = QgsVectorLayer(f"Point?crs={crs}", "temp", "memory")
@@ -265,8 +265,8 @@ class LayerManager:
             if os.path.exists(temp_gpkg):
                 try:
                     os.remove(temp_gpkg)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Konnte Temp-GPKG nicht löschen %s: %s", temp_gpkg, e)
 
             opts = QgsVectorFileWriter.SaveVectorOptions()
             opts.driverName = "GPKG"
@@ -310,8 +310,8 @@ class LayerManager:
                 shutil.copy2(temp_gpkg, gpkg)
                 try:
                     os.remove(temp_gpkg)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Konnte Temp-GPKG nach copy2 nicht löschen %s: %s", temp_gpkg, e)
             except Exception as e2:
                 self._error_alert(
                     "Layer-Aktualisierungsfehler",
@@ -360,8 +360,8 @@ class LayerManager:
             except Exception:
                 try:
                     self.layer.rollBack()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("rollBack on self.layer failed: %s", e)
 
         gpkg = self.layer.source().split("|")[0]
         if not os.path.exists(gpkg):
@@ -404,8 +404,8 @@ class LayerManager:
             if os.path.exists(migrate_gpkg):
                 try:
                     os.remove(migrate_gpkg)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Konnte Migrations-GPKG nicht löschen %s: %s", migrate_gpkg, e)
 
             opts = QgsVectorFileWriter.SaveVectorOptions()
             opts.driverName = "GPKG"
@@ -499,8 +499,8 @@ class LayerManager:
                 shutil.copy2(src, dst)
                 try:
                     os.remove(src)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Konnte Quell-Datei nach copy2 nicht löschen %s: %s", src, e)
                 return True
             except Exception as e2:
                 logger.warning("shutil.copy2 %s -> %s fehlgeschlagen: %s", src, dst, e2)

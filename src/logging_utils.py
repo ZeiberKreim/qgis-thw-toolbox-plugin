@@ -88,9 +88,9 @@ def _resolve_level() -> int:
         try:
             parser.read(config_path, encoding="utf-8")
             return _level_from_name(parser.get("logging", "level", fallback=""), _DEFAULT_LEVEL)
-        except Exception:
+        except Exception as e:
             # Malformed config shouldn't prevent the plugin from loading
-            pass
+            logging.getLogger(_ROOT_NAME).debug("Failed to read %s: %s", config_path, e)
 
     return _DEFAULT_LEVEL
 

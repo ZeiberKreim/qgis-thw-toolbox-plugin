@@ -1,7 +1,7 @@
 [general]
 name=THW Toolbox
 description=QGIS plugin designed for THW (Technisches Hilfswerk) operations and civil protection missions. Provides easy addition and management of tactical symbols on maps with drag & drop placement of SVG symbols for THW, Bundeswehr, fire departments, police and other organizations. Features intelligent sizing and feature management. Intended for use in civil protection and disaster response operations only.
-version=2.1.0
+version=2.1.1
 qgisMinimumVersion=3.44
 qgisMaximumVersion=4.99
 author=THW Minden

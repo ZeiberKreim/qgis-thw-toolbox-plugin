@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1]
+
+### Verbessert
+
+- Stille `except Exception: pass`-Blöcke durch `logger.debug(...)` ersetzt (Bandit B110): Cleanup-Fehler hinterlassen jetzt nachvollziehbare Spuren im QGIS-Log, ohne den Hauptablauf zu unterbrechen
+- Bandit-Annotationen (`# nosec B404/B603/B607`) für die „Reveal in File Manager"-Aufrufe in `export/portable_export.py` (OS-Standard-Befehle `explorer`/`open`/`xdg-open`, kein User-Input)
+
 ## [2.1.0]
 
 ### Hinzugefügt

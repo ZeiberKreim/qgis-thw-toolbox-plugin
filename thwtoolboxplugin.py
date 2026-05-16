@@ -2,8 +2,8 @@ import os
 import time
 import uuid
 
-from qgis.PyQt.QtCore import QEvent, QObject, QSize, Qt, QVariant
-from qgis.PyQt.QtGui import QColor, QDrag, QIcon, QPixmap
+from qgis.PyQt.QtCore import QEvent, QObject, Qt, QVariant
+from qgis.PyQt.QtGui import QColor, QIcon
 from qgis.PyQt.QtWidgets import (
     QAction,
     QCheckBox,
@@ -13,17 +13,11 @@ from qgis.PyQt.QtWidgets import (
     QDockWidget,
     QFormLayout,
     QGroupBox,
-    QHBoxLayout,
-    QInputDialog,
-    QLabel,
     QListWidget,
-    QListWidgetItem,
     QMessageBox,
-    QPushButton,
-    QSlider,
     QSpinBox,
     QVBoxLayout,
-    QWidget,
+    QWizard,
 )
 from qgis.core import (
     Qgis,
@@ -32,7 +26,6 @@ from qgis.core import (
     QgsFeatureRequest,
     QgsField,
     QgsGeometry,
-    QgsMapLayer,
     QgsMarkerSymbol,
     QgsPalLayerSettings,
     QgsPointXY,
@@ -42,7 +35,6 @@ from qgis.core import (
     QgsSimpleMarkerSymbolLayer,
     QgsSingleSymbolRenderer,
     QgsSvgMarkerSymbolLayer,
-    QgsSymbolLayer,
     QgsTextBufferSettings,
     QgsTextFormat,
     QgsUnitTypes,
@@ -57,7 +49,7 @@ from qgis.utils import iface
 from .identifytool import FeatureDock
 from .thwtoolboxplugin_dock import SvgDock
 from .thwtoolboxsettings import THWToolboxSettings
-
+from .dialog_project_config import DialogProjectConfig
 
 class CanvasDropFilter(QObject):
     def __init__(self, canvas, place_cb):
@@ -329,6 +321,7 @@ class THWToolboxPlugin:
         self.dock = None
 
         self.settings = THWToolboxSettings()
+        self.project_config_dialog = DialogProjectConfig(self)
 
     def _check_map_available(self):
         """Prüft, ob eine Karte vorhanden ist (CRS gesetzt und Layer im Projekt)."""
@@ -379,6 +372,24 @@ class THWToolboxPlugin:
                 level=3,  # Critical level
             )
 
+    def _map_not_available_dialog(self):
+        msg_box = QMessageBox(self.iface.mainWindow())
+        msg_box.setIcon(QMessageBox.Icon.Warning)
+        msg_box.setWindowTitle("Keine Karte vorhanden")
+        msg_box.setText("Es wurde keine Karte gefunden - soll der Projekt-Konfigurationsassistent gestartet werden?")
+
+        msg_box.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+        msg_box.setDefaultButton(QMessageBox.StandardButton.Ok)
+
+        result = msg_box.exec()
+
+        if result is not QMessageBox.StandardButton.Cancel:
+            self.project_config_dialog.open_project_config_wizard()
+        else:
+            # Plugin nicht aktivieren - Checkbox zurücksetzen
+            if self.action:
+                self.action.setChecked(False)
+
     def initGui(self):
         icon = QIcon(os.path.join(self.plugin_dir, "icons", "icon.svg"))
         self.action = QAction(icon, "THW Toolbox", self.iface.mainWindow())
@@ -425,19 +436,7 @@ class THWToolboxPlugin:
 
         # Prüfe ZUERST, ob eine Karte vorhanden ist
         if not self._check_map_available():
-            self._show_error_alert(
-                "Keine Karte vorhanden",
-                "Bitte ziehen Sie zuerst eine Karte in das Projekt ein.",
-                "Das Plugin benötigt eine Karte mit einem Koordinatensystem (CRS), um funktionieren zu können.\n\n"
-                "So fügen Sie eine Karte hinzu:\n"
-                "1. Gehen Sie zu 'Browser' im QGIS-Fenster\n"
-                "2. Ziehen Sie eine Karte (z.B. OpenStreetMap) in das Projekt\n"
-                "3. Aktivieren Sie das Plugin erneut",
-            )
-            # Plugin nicht aktivieren - Checkbox zurücksetzen
-            if self.action:
-                self.action.setChecked(False)
-            return
+            self._map_not_available_dialog()
 
         # Bereinige alte temporäre Dateien beim Start
         self._cleanup_temp_files()
@@ -591,7 +590,7 @@ class THWToolboxPlugin:
             self.dock.raise_()
             return
         self.dock = QDockWidget("Taktische Zeichen", self.iface.mainWindow())
-        self.dock.setAllowedAreas(Qt.RightDockWidgetArea)
+        self.dock.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea)
         self.svg_dock_widget = SvgDock(self.plugin_dir, self._on_svg_drag_start, self._open_config_dialog)
         self.dock.setWidget(self.svg_dock_widget)
         self.iface.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.dock)
@@ -657,16 +656,7 @@ class THWToolboxPlugin:
         try:
             # Prüfe, ob eine Karte vorhanden ist
             if not self._check_map_available():
-                self._show_error_alert(
-                    "Keine Karte vorhanden",
-                    "Bitte ziehen Sie zuerst eine Karte in das Projekt ein.",
-                    "Das Plugin benötigt eine Karte mit einem Koordinatensystem (CRS), um den Layer zu aktualisieren.\n\n"
-                    "So fügen Sie eine Karte hinzu:\n"
-                    "1. Gehen Sie zu 'Browser' im QGIS-Fenster\n"
-                    "2. Ziehen Sie eine Karte (z.B. OpenStreetMap) in das Projekt\n"
-                    "3. Versuchen Sie es erneut",
-                )
-                return
+                self._map_not_available_dialog()
 
             # Stelle sicher, dass alle Edit-Sessions geschlossen sind
             if old_layer.isEditable():
@@ -933,7 +923,7 @@ class THWToolboxPlugin:
             text_format = QgsTextFormat()
             text_format.setSize(self.settings.label_font_size_mm)  # Schriftgröße (deutlich größer für bessere Lesbarkeit)
             text_format.setSizeUnit(Qgis.RenderUnit.Millimeters)  # Einheit: Punkte
-            text_format.setColor(Qt.black)
+            text_format.setColor(QColor('black'))
             # Verwende fette Schrift für bessere Sichtbarkeit
             font = text_format.font()
             font.setBold(True)
@@ -944,7 +934,7 @@ class THWToolboxPlugin:
             buffer_settings.setEnabled(True)
             buffer_settings.setSize(self.settings.label_buffer_size_mm)  # Buffer-Größe (größer für bessere Lesbarkeit)
             buffer_settings.setSizeUnit(Qgis.RenderUnit.Millimeters)  # Einheit: Punkte
-            buffer_settings.setColor(Qt.white)
+            buffer_settings.setColor(QColor("white"))
             text_format.setBuffer(buffer_settings)
 
             label_settings.setFormat(text_format)
@@ -1348,16 +1338,7 @@ class THWToolboxPlugin:
 
         # Prüfe, ob eine Karte vorhanden ist
         if not self._check_map_available():
-            self._show_error_alert(
-                "Keine Karte vorhanden",
-                "Bitte ziehen Sie zuerst eine Karte in das Projekt ein.",
-                "Das Plugin benötigt eine Karte mit einem Koordinatensystem (CRS), um Symbole platzieren zu können.\n\n"
-                "So fügen Sie eine Karte hinzu:\n"
-                "1. Gehen Sie zu 'Browser' im QGIS-Fenster\n"
-                "2. Ziehen Sie eine Karte (z.B. OpenStreetMap) in das Projekt\n"
-                "3. Versuchen Sie erneut, ein Symbol zu platzieren",
-            )
-            return
+            self._map_not_available_dialog()
 
         if not self.layer:
             print("DEBUG: self.layer ist None, beende _place_feature")
@@ -1641,8 +1622,6 @@ class THWToolboxPlugin:
         # Layer-Referenzen in anderen Klassen aktualisieren
         self._update_tool_references()
 
-    
-
     def _open_config_dialog(self):
         dialog = QDialog(self.iface.mainWindow())
         dialog.setWindowTitle("THW Toolbox Einstellungen")
@@ -1716,7 +1695,7 @@ class THWToolboxPlugin:
 
         # Bestätigen / Abbrechen
         button_box = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+            QDialogButtonBox.Accepted | QDialogButtonBox.Cancel
         )
         layout.addWidget(button_box)
         button_box.accepted.connect(dialog.accept)

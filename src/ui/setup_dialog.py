@@ -1,9 +1,12 @@
 """Setup-Dialog: Projekt-Status prüfen + Basemaps installieren."""
 
+import os
+
 from qgis.core import QgsProject, QgsVectorLayer
 from qgis.PyQt.QtCore import QCoreApplication, Qt
-from qgis.PyQt.QtGui import QFont
+from qgis.PyQt.QtGui import QFont, QPixmap
 from qgis.PyQt.QtWidgets import (
+    QButtonGroup,
     QDialog,
     QDialogButtonBox,
     QFrame,
@@ -14,23 +17,25 @@ from qgis.PyQt.QtWidgets import (
     QMessageBox,
     QProgressDialog,
     QPushButton,
+    QRadioButton,
     QScrollArea,
     QTabWidget,
+    QToolBox,
     QVBoxLayout,
     QWidget,
+    QWizard,
+    QWizardPage,
 )
 
 from ..logging_utils import get_logger
 from ..tools import style_library
 from ..tools.basemap_setup import (
-    BASEMAPS,
     TARGET_CRS,
     TARGET_CRS_LABEL,
     Basemap,
     add_basemap_to_project,
     any_basemap_loaded,
     basemap_loaded_in_project,
-    basemaps_by_category,
     connection_exists,
     current_project_crs_auth_id,
     install_and_add,
@@ -39,6 +44,7 @@ from ..tools.basemap_setup import (
     set_project_crs_to_target,
     zoom_to_germany,
 )
+from ..tools.layer_setup import BASEMAPS, MapLayer, basemaps_by_category
 
 logger = get_logger(__name__)
 
@@ -46,8 +52,201 @@ _OK_COLOR = "#2e7d32"
 _FAIL_COLOR = "#c62828"
 
 
-class SetupDialog(QDialog):
-    """Dialog für Projekt-Setup und Basiskarten-Installation."""
+class StartPage(QWizardPage):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setTitle("THW Toolbox Projekt Setup")
+        self.layout = QVBoxLayout(self)
+
+        top_text = QLabel("Dieses Menu unterstützt beim Aufsetzen des QGIS-Projektes.")
+        top_text.setWordWrap(True)
+        self.layout.addWidget(top_text)
+
+        info_text = QLabel(
+            "Auf den folgenden Seiten wird das Projekt mit folgenden Schritten konfiguriert:<br/>"
+            "- Koordinatenreferenzsystem<br/>"
+            "- Hintergrundkarte<br/>"
+            "- Themenspezifische Zusatzlagen<br/>"
+            "- Einstellungen für die Druckvorlage<br/>"
+            "- Sonstige Projekteinstellungen"
+        )
+        info_text.setWordWrap(True)
+        self.layout.addWidget(info_text)
+
+        self.layout.addStretch(1)
+
+
+class CrsPage(QWizardPage):
+    EPSGS = {
+        "31* Nord": 25831,
+        "32* Nord": 25832,
+        "33* Nord": 25833,
+    }
+    EPSG_DEFAULT = "32* Nord"
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setTitle("Koordinatenreferenzsystem")
+        self.layout = QVBoxLayout(self)
+
+        top_text = QLabel("Bitte die UTM-Zone des relevanten Raumes anhand der Karte auswählen.")
+        top_text.setWordWrap(True)
+        self.layout.addWidget(top_text)
+
+        content_layout = QHBoxLayout()
+        self.layout.addLayout(content_layout)
+
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+
+        left_row_title = QLabel("Koordinatenreferenzsystem")
+        left_row_title.setWordWrap(True)
+        left_layout.addWidget(left_row_title)
+
+        self.zone_group = QButtonGroup(self)
+        self.zone_buttons = {}
+
+        for label in self.EPSGS:
+            btn = QRadioButton(label, self)
+            self.zone_group.addButton(btn)
+            left_layout.addWidget(btn)
+            self.zone_buttons[label] = btn
+        default_btn = self.zone_buttons[self.EPSG_DEFAULT]
+        if default_btn is None:
+            raise ValueError(f"Could not find default zone {self.EPSG_DEFAULT} in {self.zone_buttons}")
+        default_btn.setChecked(True)
+
+        left_layout.addStretch(1)
+
+        content_layout.addWidget(left_widget, 1)
+
+        image_label = QLabel()
+        image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        image_label.setMinimumWidth(320)
+        image_label.setStyleSheet("QLabel { background-color: white; }")
+        image_label.setAutoFillBackground(True)
+
+        img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "docs", "utm_zone_grid.png")
+
+        pixmap = QPixmap(img_path)
+        if not pixmap.isNull():
+            image_label.setPixmap(pixmap.scaledToWidth(360, Qt.TransformationMode.SmoothTransformation))
+        else:
+            image_label.setText("Bild konnte nicht geladen werden.\n" + img_path)
+
+        content_layout.addWidget(image_label, 1)
+
+        details_box = QToolBox()
+        details = QWidget()
+        details_layout = QVBoxLayout(details)
+        details_text = QLabel(
+            "Durch Deutschland verlaufen die 3 Zonen 31N bis 32N die hier zu Auswahl stehen. Für Einsätze im Ausland ist unten rechts in QGIS manuell das korrekte Koordinatenreferenzsystem auszuwählen.<br/><br/>"
+            "Was ist UTM?<br/>"
+            "Die runde Erde muss auf eine flache Karte projiziert werden. Dafür werden unterschiedliche Systeme verwendet wovon UTM ein im begrenzten Gebiet sehr genaues Verfahren darstellt. Allerdings muss für die UTM-Projektion der passende Ost-West-Abschnitt gewählt werden, um die Fehler durch die Projektion niedrig zu halten."
+        )
+        details_text.setWordWrap(True)
+        details_layout.addWidget(details_text)
+        details_layout.addStretch(1)
+        details_box.addItem(details, "Details")
+        self.layout.addWidget(details_box)
+
+    def get_selected_epsg(self):
+        epsg_str = self.zone_group.checkedButton().text()
+        epsg = self.EPSGS.get(epsg_str)
+        if epsg is None:
+            logger.warning(f"Unsupported zone {epsg_str} received on CRS selection.")
+        return epsg
+
+
+class BaseMapPage(QWizardPage):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setTitle("Hintergrundkarte")
+        self.layout = QVBoxLayout(self)
+
+        self._active_button_group = QButtonGroup(self)
+        self._active_button_group.setExclusive(True)
+
+        top_text = QLabel(
+            "Es wird gleichzeitig nur eine Hintergrundkarte angezeigt. Die Karten benötigen eine Internetverbindung um zu laden."
+        )
+        top_text.setWordWrap(True)
+        self.layout.addWidget(top_text)
+
+        tabs = QTabWidget()
+        for category, items in basemaps_by_category().items():
+            tabs.addTab(self._build_category_tab(items), category)
+        self.layout.addWidget(tabs)
+
+    def _build_category_tab(self, items: list) -> QWidget:
+        page = QWidget()
+        page_layout = QVBoxLayout(page)
+        page_layout.setContentsMargins(0, 6, 0, 0)
+        page_layout.setSpacing(6)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        inner = QWidget()
+        inner_layout = QVBoxLayout(inner)
+        inner_layout.setContentsMargins(0, 0, 0, 0)
+        inner_layout.setSpacing(4)
+        for bm in items:
+            inner_layout.addWidget(self._build_basemap_row(bm))
+        inner_layout.addStretch(1)
+        scroll.setWidget(inner)
+        page_layout.addWidget(scroll, 1)
+        return page
+
+    def _build_basemap_row(self, bm: MapLayer) -> QWidget:
+        row = QFrame()
+        row.setFrameShape(QFrame.Shape.StyledPanel)
+        hbox = QHBoxLayout(row)
+        hbox.setContentsMargins(8, 6, 8, 6)
+        hbox.setSpacing(8)
+
+        left_vbox = QVBoxLayout()
+        left_vbox.setSpacing(4)
+
+        name = QLabel(bm.name)
+        f = QFont(name.font())
+        f.setBold(True)
+        name.setFont(f)
+        left_vbox.addWidget(name)
+
+        desc = QLabel(bm.description)
+        desc.setStyleSheet("color: gray;")
+        desc.setWordWrap(True)
+        left_vbox.addWidget(desc)
+
+        hbox.addLayout(left_vbox, stretch=1)
+
+        button_vbox = QVBoxLayout()
+        button_vbox.setSpacing(4)
+
+        active_btn = QPushButton("Als aktiv setzen")
+        active_btn.setCheckable(True)
+
+        add_project_btn = QPushButton("Im Projekt hinzufügen")
+        add_project_btn.setCheckable(True)
+
+        add_browser_btn = QPushButton("In QGIS Browser hinz.")
+        add_browser_btn.setCheckable(True)
+
+        button_vbox.addWidget(active_btn)
+        button_vbox.addWidget(add_project_btn)
+        button_vbox.addWidget(add_browser_btn)
+        button_vbox.addStretch(1)
+
+        hbox.addLayout(button_vbox, stretch=0)
+
+        self._active_button_group.addButton(active_btn)
+
+        return row
+
+
+class SetupDialog(QWizard):
+    """Wizard für Projekt-Setup und Basiskarten-Installation."""
 
     def __init__(self, plugin, parent=None):
         super().__init__(parent)
@@ -55,37 +254,64 @@ class SetupDialog(QDialog):
         self.setWindowTitle("THW Toolbox Setup")
         self.resize(620, 640)
 
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(12, 12, 12, 12)
-        outer.setSpacing(10)
+        # Page builder calls
+        start_pg = StartPage(parent=self)
+        crs_pg = CrsPage(parent=self)
+        base_map_pg = BaseMapPage(parent=self)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        container = QWidget()
-        self._content_layout = QVBoxLayout(container)
-        self._content_layout.setContentsMargins(0, 0, 0, 0)
-        self._content_layout.setSpacing(12)
-        scroll.setWidget(container)
-        outer.addWidget(scroll, 1)
+        self.addPage(start_pg)
+        self.addPage(crs_pg)
+        self.addPage(base_map_pg)
 
-        self._status_group = self._build_status_group()
-        self._content_layout.addWidget(self._status_group)
+        result = self.exec()
+        logger.debug(f"Setup Wizard returned with result {result}")
 
-        self._styles_group = self._build_styles_group()
-        self._content_layout.addWidget(self._styles_group)
+        if result == QDialog.DialogCode.Accepted:
+            pass  # Handle successful return
+        else:
+            pass  # Handle Rejection
 
-        self._basemaps_group = self._build_basemaps_group()
-        self._content_layout.addWidget(self._basemaps_group)
+        # outer = QVBoxLayout(self)
+        # outer.setContentsMargins(12, 12, 12, 12)
+        # outer.setSpacing(10)
 
-        self._content_layout.addStretch(1)
+        # scroll = QScrollArea()
+        # scroll.setWidgetResizable(True)
+        # scroll.setFrameShape(QFrame.Shape.NoFrame)
+        # container = QWidget()
+        # self._content_layout = QVBoxLayout(container)
+        # self._content_layout.setContentsMargins(0, 0, 0, 0)
+        # self._content_layout.setSpacing(12)
+        # scroll.setWidget(container)
+        # outer.addWidget(scroll, 1)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        buttons.rejected.connect(self.reject)
-        buttons.accepted.connect(self.accept)
-        outer.addWidget(buttons)
+        # # self._status_group = self._build_status_group()
+        # # self._content_layout.addWidget(self._status_group)
+
+        # # self._styles_group = self._build_styles_group()
+        # # self._content_layout.addWidget(self._styles_group)
+
+        # # self._basemaps_group = self._build_basemaps_group()
+        # # self._content_layout.addWidget(self._basemaps_group)
+
+        # self._content_layout.addStretch(1)
+
+        # buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        # buttons.rejected.connect(self.reject)
+        # buttons.accepted.connect(self.accept)
+        # outer.addWidget(buttons)
 
         self._refresh_all()
+        self._crs_label = QLabel()
+        self._crs_fix_btn = QPushButton(f"Auf {TARGET_CRS} setzen")
+        self._basemap_label = QLabel()
+        self._basemap_fix_btn = QPushButton("OSM laden")
+        self._zoom_btn = QPushButton("Auf Deutschland zoomen")
+
+        self._zoom_label = QLabel("Kartenansicht auf Deutschland zentrieren")
+        self._styles_status = QLabel()
+        self._styles_remove_btn = QPushButton("Stile entfernen")
+        self._styles_import_btn = QPushButton("Stile importieren")
 
     # ---------------------------------------------------------------- status
 
@@ -96,19 +322,13 @@ class SetupDialog(QDialog):
         grid.setHorizontalSpacing(10)
         grid.setVerticalSpacing(8)
 
-        self._crs_label = QLabel()
         self._crs_label.setWordWrap(True)
-        self._crs_fix_btn = QPushButton(f"Auf {TARGET_CRS} setzen")
         self._crs_fix_btn.clicked.connect(self._fix_crs)
 
-        self._basemap_label = QLabel()
         self._basemap_label.setWordWrap(True)
-        self._basemap_fix_btn = QPushButton("OSM laden")
         self._basemap_fix_btn.clicked.connect(self._fix_basemap)
 
-        self._zoom_label = QLabel("Kartenansicht auf Deutschland zentrieren")
         self._zoom_label.setWordWrap(True)
-        self._zoom_btn = QPushButton("Auf Deutschland zoomen")
         self._zoom_btn.clicked.connect(self._zoom_germany)
 
         row = 0
@@ -350,15 +570,12 @@ class SetupDialog(QDialog):
         vbox.addWidget(hint)
 
         row = QHBoxLayout()
-        self._styles_status = QLabel()
         self._styles_status.setWordWrap(True)
         row.addWidget(self._styles_status, 1)
 
-        self._styles_remove_btn = QPushButton("Stile entfernen")
         self._styles_remove_btn.clicked.connect(self._on_remove_styles)
         row.addWidget(self._styles_remove_btn)
 
-        self._styles_import_btn = QPushButton("Stile importieren")
         self._styles_import_btn.clicked.connect(self._on_import_styles)
         row.addWidget(self._styles_import_btn)
 
@@ -432,6 +649,7 @@ class SetupDialog(QDialog):
             logger.debug("Konnte Setup-Meldung nicht anzeigen: %s", e)
 
     def _refresh_all(self) -> None:
-        self._refresh_status()
-        self._refresh_styles()
-        self._refresh_basemaps()
+        pass
+        # self._refresh_status()
+        # self._refresh_styles()
+        # self._refresh_basemaps()

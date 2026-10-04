@@ -35,7 +35,6 @@ from .layer.labeling import apply_labeling
 from .layer.layer_manager import LayerManager
 from .layer.renderer import apply_renderer
 from .layout.legend import add_legend_action
-from .layout.mgrs_grid import build_mgrs_grid_layer
 from .layout.tile_export import add_designer_action
 from .logging_utils import get_logger
 from .paths import plugin_root
@@ -186,13 +185,6 @@ class THWToolboxPlugin:
         self.iface.layoutDesignerOpened.connect(self._add_designer_action)
         for designer in self.iface.openLayoutDesigners():
             self._add_designer_action(designer)
-
-        # MGRS-Gitter als temporären Layer hinzufügen
-        mgrs_icon = QIcon(os.path.join(self.plugin_dir, "icons", "mgrs.svg"))
-        self.mgrs_grid_action = QAction(mgrs_icon, "MGRS-Gitter temporär hinzufügen", self.iface.mainWindow())
-        self.mgrs_grid_action.triggered.connect(self._add_mgrs_grid_layer)
-        self.iface.addToolBarIcon(self.mgrs_grid_action)
-        self.iface.addPluginToMenu("THW Toolbox", self.mgrs_grid_action)
 
         # Objektplanung: Zelte, Flächen-Kapazität, Stromverteilung
         planning_icon = QIcon(os.path.join(self.plugin_dir, "icons", "objektplanung.svg"))
@@ -558,10 +550,6 @@ class THWToolboxPlugin:
                 except RuntimeError:  # Designer bereits geschlossen
                     pass
             self._designer_actions = None
-        if getattr(self, "mgrs_grid_action", None):
-            self.iface.removeToolBarIcon(self.mgrs_grid_action)
-            self.iface.removePluginMenu("THW Toolbox", self.mgrs_grid_action)
-            self.mgrs_grid_action = None
         if self.export_action:
             self.iface.removePluginMenu("THW Toolbox", self.export_action)
         if getattr(self, "planning_action", None):
@@ -1216,23 +1204,6 @@ class THWToolboxPlugin:
         self._docks_tabified = True
         self.iface.mainWindow().tabifyDockWidget(self.dock, planning_dock)
         (front or planning_dock).raise_()
-
-    def _add_mgrs_grid_layer(self):
-        extent = self.canvas.extent()
-        crs = self.canvas.mapSettings().destinationCrs()
-        if not crs.isValid() or extent.isEmpty():
-            self._show_error_alert(
-                "MGRS-Gitter",
-                "Keine gültige Kartenansicht.",
-                "Öffnen Sie zuerst eine Karte und zoomen Sie auf den gewünschten Bereich.",
-            )
-            return
-        layer, message = build_mgrs_grid_layer(extent, crs, interval=1000)
-        if layer is None:
-            self._show_error_alert("MGRS-Gitter", message, None)
-            return
-        QgsProject.instance().addMapLayer(layer)
-        self.iface.messageBar().pushMessage("MGRS-Gitter", message, Qgis.MessageLevel.Success)
 
     def _open_setup_dialog(self, mode: str | None = None):
         """Öffnet den Setup-Dialog im gewählten Modus (Standard: Einstellung aus QgsSettings, Assistent).

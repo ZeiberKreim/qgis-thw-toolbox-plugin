@@ -85,6 +85,7 @@ Neue Werkzeugleiste **„THW Toolbox Annotationen“** zum Zeichnen und Bearbeit
 
 ### Entfernt
 - Drucklayout `templates/Einsatz.qpt`
+- Toolbar-Aktion „MGRS-Gitter temporär hinzufügen“ samt Erzeugung des Gitter-Layers (`build_mgrs_grid_layer`) und Icon `mgrs.svg`; UTMREF-Gitter gibt es weiterhin in den Druckvorlagen
 
 ### Technisch
 - Neue Module: `layer/annotations.py` (Annotations-Layer und -Objekte), `layer/annotation_history.py` (Rückgängig/Wiederherstellen), `tools/annotation_tool.py` (Zeichnen), `tools/annotation_move_tool.py` (Verschieben/Bearbeiten), `tools/cursor_label.py` (Hinweis am Mauszeiger), `tools/undo_shortcuts.py` (Strg+Z/Strg+Y), `ui/annotation_dialog.py` (Dialoge), `ui/coordinate_box.py` (Koordinaten-Tabelle), `util/units.py` (Zahlenformatierung)

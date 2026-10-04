@@ -11,6 +11,7 @@ selbst. „Legende aktualisieren“ im Layout-Menü des Designers baut sie neu a
 """
 
 from qgis.core import (
+    Qgis,
     QgsCoordinateTransform,
     QgsCsException,
     QgsFeatureRequest,
@@ -80,8 +81,12 @@ def apply_legend(legend: QgsLayoutItemLegend) -> None:
     """
     # Eigenes Legendenmodell statt automatischem Spiegel des Projekt-Layerbaums;
     # das Ein- und Ausschalten holt dabei den aktuellen Stand des Layerbaums
-    legend.setAutoUpdateModel(True)
-    legend.setAutoUpdateModel(False)
+    if hasattr(legend, "setSyncMode"):  # QGIS 4, setAutoUpdateModel ist dort veraltet
+        legend.setSyncMode(Qgis.LegendSyncMode.AllProjectLayers)
+        legend.setSyncMode(Qgis.LegendSyncMode.Manual)
+    else:
+        legend.setAutoUpdateModel(True)
+        legend.setAutoUpdateModel(False)
     model = legend.model()
     root = model.rootGroup()
 

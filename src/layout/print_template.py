@@ -111,14 +111,19 @@ class PrintInfo:
     tidy_legend: bool = True
 
     @classmethod
-    def load(cls) -> "PrintInfo":
-        """OV/Einheit/Bearbeiter aus den Benutzereinstellungen, Einsatz aus dem Projekt."""
+    def load(cls, einsatz_from_title: bool = True) -> "PrintInfo":
+        """OV/Einheit/Bearbeiter aus den Benutzereinstellungen, Einsatz aus dem Projekt.
+
+        Ohne gespeicherten Einsatz wird der Projekttitel vorgeschlagen, außer bei
+        ``einsatz_from_title=False`` (Setup-Assistent: Einsatz bleibt dann leer).
+        Bearbeiter fällt auf den Autor des Projekts bzw. den Namen des Benutzers zurück.
+        """
         s = QgsSettings()
         d = cls()
         project = QgsProject.instance()
 
         einsatz, ok = project.readEntry(_PROJECT_SCOPE, _PROJECT_EINSATZ_KEY, "")
-        if not ok or not einsatz:
+        if (not ok or not einsatz) and einsatz_from_title:
             einsatz = project.title() or project.baseName()
         kartentitel, _ = project.readEntry(_PROJECT_SCOPE, _PROJECT_KARTENTITEL_KEY, d.kartentitel)
         einsatzort, _ = project.readEntry(_PROJECT_SCOPE, _PROJECT_EINSATZORT_KEY, "")
@@ -129,7 +134,9 @@ class PrintInfo:
             einheit=s.value(_SETTINGS_PREFIX + "einheit", d.einheit),
             einheit_kurz=s.value(_SETTINGS_PREFIX + "einheit_kurz", d.einheit_kurz),
             einheit_zeichen=s.value(_SETTINGS_PREFIX + "einheit_zeichen", d.einheit_zeichen, type=bool),
-            bearbeiter=s.value(_SETTINGS_PREFIX + "bearbeiter", "") or project.metadata().author(),
+            bearbeiter=s.value(_SETTINGS_PREFIX + "bearbeiter", "")
+            or project.metadata().author()
+            or QgsApplication.userFullName(),
             einsatz=einsatz,
             kartentitel=kartentitel,
             einsatzort=einsatzort,

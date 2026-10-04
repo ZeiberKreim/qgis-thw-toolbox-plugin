@@ -15,6 +15,7 @@
 - **A3 aus zwei A4-Blättern**: Im Layout-Designer exportiert „Layout → Als A4-Blätter exportieren (PDF) …“ jedes Layout maßstabstreu als mehrseitiges A4-PDF zum Zusammenkleben (5 mm Druckrand, 10 mm Überlappung, Schnittlinie auf den Folgeblättern). Die Vorlage `Toolbox_A3_QUER_2xA4` (400 × 297 mm) passt genau auf zwei A4-Blätter hoch
 - **THW-Drucklayouts A0–A4 quer** (Standard der THW-Leitung) in `templates/` inkl. Logo und Nordpfeil
 - Druckvorlagen-Dialog fragt Ortsverband, Einheit, Bearbeiter und Einsatz ab; OV/Einheit/Bearbeiter werden in den Benutzereinstellungen, der Einsatz im Projekt gemerkt
+- **Setup-Assistent**: Die letzte Seite fragt die Angaben für die Druckvorlagen ab (Einsatzname, Einsatzort, Ortsverband, Einheit, Einheit-Kürzel, Bearbeiter) und teilt sie mit dem Druckvorlagen-Dialog; Bearbeiter ist mit dem Benutzernamen vorbelegt
 - Keine Einstufung VS-NfD: eingestufte Inhalte dürfen mit QGIS nicht verarbeitet werden. Die Toolbox-Vorlagen tragen keine Kennzeichnung, die ausgeblendete VS-NfD-Kennzeichnung der Vorlagen der THW-Leitung wird beim Laden entfernt
 - Autovervollständigung für den Ortsverband aus `data/ovs.json` (670 OVs, Teilwortsuche)
 - Platzhalter der Vorlagen werden zu Layout-Variablen (`@thw_ov`, `@thw_einheit`, `@thw_einheit_kurz`, `@thw_bearbeiter`, `@thw_einsatz`), nachträglich in den Layout-Eigenschaften änderbar

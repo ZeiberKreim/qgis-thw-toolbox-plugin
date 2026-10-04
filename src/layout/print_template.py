@@ -13,17 +13,21 @@ Laden am fertigen Layout:
   `templates/assets/` gesucht, falls das Projekt die Grafiken nicht mitbringt.
 - Trägt die Karte `Hauptkarte` die Gitter `UTMREF` / `LONLAT`, wird das gewählte
   eingeschaltet; die Karte übernimmt den aktuellen Ausschnitt in dessen UTM-Zone.
+- Ein im Dialog gewählter Maßstab der Hauptkarte (Empfehlung je Papierformat in
+  `EMPFOHLENE_MASSSTAEBE`) ersetzt den aus Ausschnitt bzw. Vorlage.
 - Übersichtskarten zeigen nur die Hintergrundkarte.
 - Das taktische Zeichen der Einheit (`Taktisches Zeichen Einheit`) lässt sich abschalten.
 - Die Legende wird auf das Nötige reduziert (siehe `legend.py`).
 """
 
+import functools
 import json
 import math
 import os
 import re
 import shutil
 from dataclasses import dataclass
+from xml.etree import ElementTree
 
 from qgis.core import (
     QgsApplication,
@@ -86,6 +90,14 @@ _BUNDESLOGO_ID = "Logo Bundesadler"
 _UNIT_SIGN_ID = "Taktisches Zeichen Einheit"
 
 _STANDARD_SCALES = (500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 200000, 250000, 500000, 1000000)
+
+# Empfohlener Maßstab der Hauptkarte je Papierformat. Wie in den Vorlagen der THW-Leitung zeigt jedes
+# Format etwa denselben Ausschnitt (rund 3,3 × 2,6 km), größeres Papier also mehr Einzelheiten.
+EMPFOHLENE_MASSSTAEBE = {"A4": 15000, "A3": 10000, "A2": 7500, "A1": 5000, "A0": 3500}
+# Zur Auswahl im Druckvorlagen-Dialog, zusätzlich zu den empfohlenen
+MASSSTAB_VORSCHLAEGE = tuple(
+    sorted({1000, 2500, 5000, 10000, 25000, 50000, 100000, *EMPFOHLENE_MASSSTAEBE.values()})
+)
 
 # (Muster, Ersetzung) für Textfelder der Vorlage
 _LABEL_REPLACEMENTS = (
@@ -248,11 +260,81 @@ def _display_name(stem: str) -> str:
     return " ".join(parts)
 
 
-def load_print_template(path: str, info: PrintInfo, assets_dir: str, canvas=None) -> QgsPrintLayout:
+@dataclass(frozen=True)
+class TemplateInfo:
+    """Eckdaten einer Vorlage für den Druckvorlagen-Dialog, ohne sie als Layout zu laden."""
+
+    paper: str | None = None  # ISO-Format der ersten Seite, z. B. "A3"
+    map_size_mm: tuple[float, float] | None = None  # Breite, Höhe der Hauptkarte
+    canvas_extent: bool = False  # Hauptkarte trägt Toolbox-Gitter und übernimmt den Kartenausschnitt
+
+    @property
+    def recommended_scale(self) -> int | None:
+        return EMPFOHLENE_MASSSTAEBE.get(self.paper)
+
+
+_LAYOUT_ITEM_PAGE = "65638"
+_LAYOUT_ITEM_MAP = "65639"
+_UNIT_TO_MM = {"mm": 1.0, "cm": 10.0, "m": 1000.0, "in": 25.4, "pt": 25.4 / 72}
+
+
+def template_info(path: str) -> TemplateInfo:
+    """Papierformat und Größe der Hauptkarte aus der Vorlage `path`; unbekanntes bleibt `None`."""
+    try:
+        return _template_info(path, os.path.getmtime(path))
+    except OSError:
+        return TemplateInfo()
+
+
+@functools.lru_cache(maxsize=32)
+def _template_info(path: str, _mtime: float) -> TemplateInfo:
+    try:
+        root = ElementTree.parse(path).getroot()
+    except (OSError, ElementTree.ParseError) as e:
+        logger.warning("Vorlage %s konnte nicht gelesen werden: %s", path, e)
+        return TemplateInfo()
+
+    page = next((p for pc in root.iter("PageCollection") for p in pc.iter("LayoutItem")), None)
+    page_size = _size_mm(page.get("size")) if page is not None else None
+    main_map = next(
+        (i for i in root.iter("LayoutItem") if i.get("type") == _LAYOUT_ITEM_MAP and i.get("id") == _MAIN_MAP_ID),
+        None,
+    )
+    if main_map is None:
+        return TemplateInfo(paper=_paper_format(page_size))
+    return TemplateInfo(
+        paper=_paper_format(page_size),
+        map_size_mm=_size_mm(main_map.get("size")),
+        canvas_extent=any(g.get("name") in GITTER_NAMEN for g in main_map.iter("ComposerMapGrid")),
+    )
+
+
+def _size_mm(size: str | None) -> tuple[float, float] | None:
+    """`"220.5,173,mm"` → `(220.5, 173.0)`."""
+    try:
+        w, h, unit = (size or "").split(",")
+        return float(w) * _UNIT_TO_MM[unit], float(h) * _UNIT_TO_MM[unit]
+    except (ValueError, KeyError):
+        return None
+
+
+def _paper_format(size_mm: tuple[float, float] | None) -> str | None:
+    """Nächstes ISO-A-Format nach der langen Seite (A0 = 1189 mm, je Stufe / √2), z. B. 400 × 297 mm → A3."""
+    if not size_mm or max(size_mm) <= 0:
+        return None
+    n = math.log(1189 / max(size_mm), math.sqrt(2))
+    return f"A{round(n)}" if 0 <= round(n) <= 10 and abs(n - round(n)) < 0.25 else None
+
+
+def load_print_template(
+    path: str, info: PrintInfo, assets_dir: str, canvas=None, scale: int | None = None
+) -> QgsPrintLayout:
     """Lädt `path` als neues Layout und wendet `info` an. Wirft `ValueError` bei Fehlern.
 
     Mit `canvas` übernehmen Vorlagen mit UTMREF-/LONLAT-Gitter dessen Kartenausschnitt,
     alle übrigen (z. B. THW-Leitung) werden auf dessen Mitte zentriert.
+    Mit `scale` erhält die Hauptkarte diesen Maßstab (um ihre Mitte), statt ihn aus dem
+    Kartenausschnitt bzw. der Vorlage zu übernehmen.
     """
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -277,6 +359,8 @@ def load_print_template(path: str, info: PrintInfo, assets_dir: str, canvas=None
     _apply_grid(layout, info.gitter)
     if canvas is not None:
         _apply_canvas_view(layout, canvas)
+    if scale:
+        _apply_scale(layout, scale)
     _apply_overview_layers(layout)
     if info.tidy_legend:
         for legend in _items_of_type(layout, QgsLayoutItemLegend):
@@ -432,6 +516,15 @@ def _center_maps(maps: list, canvas) -> None:
                 logger.debug("Übersichtsrahmen in %s neu mit der Hauptkarte verknüpft", map_item.id())
                 overview.setLinkedMap(main_map)
         map_item.invalidateCache()
+
+
+def _apply_scale(layout: QgsPrintLayout, scale: int) -> None:
+    """Maßstab der Hauptkarte setzen; die Mitte bleibt. Übersichten der THW-Leitung folgen per Ausdruck."""
+    main_map = next((m for m in _items_of_type(layout, QgsLayoutItemMap) if m.id() == _MAIN_MAP_ID), None)
+    if main_map is None:
+        logger.warning("Vorlage ohne Hauptkarte: Maßstab 1:%s nicht gesetzt", scale)
+        return
+    main_map.setScale(scale)
 
 
 def _basemap_layers() -> list:

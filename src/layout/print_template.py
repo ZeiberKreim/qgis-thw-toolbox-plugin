@@ -38,6 +38,7 @@ from qgis.core import (
     QgsPrintLayout,
     QgsProject,
     QgsReadWriteContext,
+    QgsRectangle,
     QgsSettings,
     QgsVectorLayer,
 )
@@ -250,7 +251,8 @@ def _display_name(stem: str) -> str:
 def load_print_template(path: str, info: PrintInfo, assets_dir: str, canvas=None) -> QgsPrintLayout:
     """Lädt `path` als neues Layout und wendet `info` an. Wirft `ValueError` bei Fehlern.
 
-    Mit `canvas` übernehmen Vorlagen mit UTMREF-/LONLAT-Gitter dessen Kartenausschnitt.
+    Mit `canvas` übernehmen Vorlagen mit UTMREF-/LONLAT-Gitter dessen Kartenausschnitt,
+    alle übrigen (z. B. THW-Leitung) werden auf dessen Mitte zentriert.
     """
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -372,13 +374,14 @@ def _apply_canvas_view(layout: QgsPrintLayout, canvas) -> None:
     """Kartenausschnitt des Hauptfensters in die Hauptkarte übernehmen, in dessen UTM-Zone.
 
     Die Karte ist auch mit Lon/Lat-Gitter UTM-projiziert, damit der Maßstab stimmt.
+    Vorlagen ohne Toolbox-Gitter (THW-Leitung, eigene) behalten Maßstab und KBS und
+    werden nur auf die Mitte des Hauptfensters zentriert.
     """
     maps = _items_of_type(layout, QgsLayoutItemMap)
     main_map = next((m for m in maps if m.id() == _MAIN_MAP_ID), None)
-    if main_map is None:
-        return
-    grids = _template_grids(main_map)
+    grids = _template_grids(main_map) if main_map is not None else {}
     if not grids:
+        _center_maps(maps, canvas)
         return
 
     canvas_crs = canvas.mapSettings().destinationCrs()
@@ -399,6 +402,36 @@ def _apply_canvas_view(layout: QgsPrintLayout, canvas) -> None:
     scale = next((s for s in _STANDARD_SCALES if s >= main_map.scale()), None)
     if scale:
         main_map.setScale(scale)
+
+
+def _center_maps(maps: list, canvas) -> None:
+    """Alle Karten (auch die Übersichten, deren Rahmen die Hauptkarte zeigt) auf die
+    Mitte des Hauptfensters schieben, jede in ihrem eigenen KBS und Maßstab."""
+    canvas_crs = canvas.mapSettings().destinationCrs()
+    center = canvas.extent().center()
+    for map_item in maps:
+        try:
+            c = QgsCoordinateTransform(canvas_crs, map_item.crs(), QgsProject.instance()).transform(center)
+        except Exception as e:  # QgsCsException außerhalb des Gültigkeitsbereichs des KBS
+            logger.warning("Karte %s konnte nicht zentriert werden: %s", map_item.id(), e)
+            continue
+        extent = map_item.extent()
+        half_w, half_h = extent.width() / 2, extent.height() / 2
+        map_item.setExtent(QgsRectangle(c.x() - half_w, c.y() - half_h, c.x() + half_w, c.y() + half_h))
+
+    # Die Markierung in den Übersichten (Übersichtsrahmen) folgt der Hauptkarte, solange sie mit ihr
+    # verknüpft ist. Ging die Verknüpfung beim Laden verloren, bliebe sie an der alten Stelle stehen.
+    main_map = next((m for m in maps if m.id() == _MAIN_MAP_ID), None)
+    if main_map is None:
+        return
+    for map_item in maps:
+        if map_item is main_map:
+            continue
+        for overview in map_item.overviews().asList():
+            if overview.linkedMap() is None:
+                logger.debug("Übersichtsrahmen in %s neu mit der Hauptkarte verknüpft", map_item.id())
+                overview.setLinkedMap(main_map)
+        map_item.invalidateCache()
 
 
 def _basemap_layers() -> list:

@@ -75,6 +75,7 @@ Neue Werkzeugleiste **„THW Toolbox Annotationen“** zum Zeichnen und Bearbeit
 - Marker-Tabelle hat ein eigenes Toolbar-Icon im Stil der übrigen
 - **Einheitliche Legende**: jedes taktische Zeichen erscheint einmal, ungedreht und in fester Größe (max. Symbolgröße der Vorlage), unabhängig von Größe/Drehung auf der Karte (`layout/legend.py`)
 - Der Layout-Designer öffnet sich aus dem Druckvorlagen-Dialog im Vordergrund statt hinter dem QGIS-Hauptfenster
+- Vorlagen der THW-Leitung und eigene Vorlagen zeigen beim Öffnen die Mitte des Kartenfensters (Hauptkarte und Übersichten samt Markierung des Kartenausschnitts, Maßstab der Vorlage bleibt) statt eines fest gespeicherten Ausschnitts
 
 ### Geändert
 - `DjiMbtilesExporter.export` akzeptiert jeden Kartenlayer (nicht nur Vektorlayer) und optional eine eigene Ausdehnung
@@ -83,6 +84,7 @@ Neue Werkzeugleiste **„THW Toolbox Annotationen“** zum Zeichnen und Bearbeit
 ### Behoben
 - Marker-Details zeigten „UTM 32N: …E …N“ (fest Zone 32, ohne 100-km-Quadrat und Band); jetzt vollständige MGRS-Koordinate mit Zone und Band aus der Position. „Kopieren“ kopiert nur die Koordinate und ist breit genug für seinen Text
 - MBTiles-Zoomstufen-Dialog war zu schmal; Titel und Hinweistext wurden abgeschnitten
+- Vorlagen der THW-Leitung A0, A1, A2, A4: Der rote Rahmen des Kartenausschnitts in den Übersichtskarten lag unter der Hintergrundkarte und war nicht zu sehen; er wird jetzt über den Kartenlayern gezeichnet
 
 ### Entfernt
 - Drucklayout `templates/Einsatz.qpt`

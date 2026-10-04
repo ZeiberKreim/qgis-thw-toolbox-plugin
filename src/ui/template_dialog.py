@@ -29,6 +29,7 @@ from qgis.utils import iface
 
 from ..layout.legend import in_legend, legend_candidates, set_in_legend
 from ..layout.print_template import (
+    EINHEIT_ZEICHEN,
     EMPFOHLENE_MASSSTAEBE,
     GITTER_NAMEN,
     KARTENTITEL_VORSCHLAEGE,
@@ -182,10 +183,15 @@ class TemplateDialog(QDialog):
         self._einheit_kurz_edit.setToolTip("Kurzform für den Bildnachweis, z. B. „TrUL“")
         form.addRow("Einheit (Kürzel):", self._einheit_kurz_edit)
 
-        self._zeichen_check = QCheckBox("Taktisches Zeichen Trupp UL oben rechts zeigen")
-        self._zeichen_check.setChecked(info.einheit_zeichen)
-        self._zeichen_check.setToolTip("In den Vorlagen der THW Toolbox: zeigt, dass die Karte vom Trupp UL stammt")
-        form.addRow("", self._zeichen_check)
+        self._zeichen_combo = QComboBox()
+        for key, (name, _) in EINHEIT_ZEICHEN.items():
+            self._zeichen_combo.addItem(name, key)
+        self._zeichen_combo.setCurrentIndex(self._zeichen_combo.findData(info.einheit_zeichen))
+        self._zeichen_combo.setToolTip(
+            "Taktisches Zeichen oben rechts in den Vorlagen der THW Toolbox: zeigt, von welcher Einheit die Karte "
+            "stammt. Die Vorlagen der THW-Leitung haben keinen Platz dafür."
+        )
+        form.addRow("Taktisches Zeichen:", self._zeichen_combo)
 
         self._bearbeiter_edit = QLineEdit(info.bearbeiter)
         form.addRow("Bearbeiter:", self._bearbeiter_edit)
@@ -249,7 +255,7 @@ class TemplateDialog(QDialog):
             ortsverband=self._ov_edit.text().strip(),
             einheit=self._einheit_edit.text().strip(),
             einheit_kurz=self._einheit_kurz_edit.text().strip(),
-            einheit_zeichen=self._zeichen_check.isChecked(),
+            einheit_zeichen=self._zeichen_combo.currentData(),
             bearbeiter=self._bearbeiter_edit.text().strip(),
             einsatz=self._einsatz_edit.text().strip(),
             kartentitel=self._kartentitel_combo.currentText().strip(),
@@ -303,6 +309,7 @@ class TemplateDialog(QDialog):
             choice, text = QgsSettings().value(_SCALE_KEY, _SCALE_AUTO, type=int), ""
         entry = self._current_entry()
         self._template_info = template_info(entry.path) if entry else TemplateInfo()
+        self._zeichen_combo.setEnabled(self._template_info.unit_sign)
         self._fill_scale_combo(choice, text)
         self._on_scale_changed()
 

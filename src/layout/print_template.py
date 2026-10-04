@@ -16,7 +16,7 @@ Laden am fertigen Layout:
 - Ein im Dialog gewählter Maßstab der Hauptkarte (Empfehlung je Papierformat in
   `EMPFOHLENE_MASSSTAEBE`) ersetzt den aus Ausschnitt bzw. Vorlage.
 - Übersichtskarten zeigen nur die Hintergrundkarte.
-- Das taktische Zeichen der Einheit (`Taktisches Zeichen Einheit`) lässt sich abschalten.
+- Das taktische Zeichen der Einheit (`Taktisches Zeichen Einheit`) wird nach Wahl ausgetauscht oder ausgeblendet.
 - Die Legende wird auf das Nötige reduziert (siehe `legend.py`).
 """
 
@@ -39,6 +39,8 @@ from qgis.core import (
     QgsLayoutItemLegend,
     QgsLayoutItemMap,
     QgsLayoutItemPicture,
+    QgsLayoutPoint,
+    QgsLayoutSize,
     QgsPrintLayout,
     QgsProject,
     QgsReadWriteContext,
@@ -89,6 +91,17 @@ _MAIN_MAP_ID = "Hauptkarte"
 _BUNDESLOGO_ID = "Logo Bundesadler"
 _UNIT_SIGN_ID = "Taktisches Zeichen Einheit"
 
+# Taktisches Zeichen der Einheit oben rechts in den Toolbox-Vorlagen: Schlüssel → (Anzeigename, Datei in
+# `templates/assets/`). Die Dateien sind knapp auf das Zeichen zugeschnitten; es erhält die Höhe des Platzes
+# in der Vorlage und wächst rechtsbündig in die Breite
+EINHEIT_ZEICHEN_KEINS = ""
+EINHEIT_ZEICHEN_TRUPP_UL = "trupp_ul"
+EINHEIT_ZEICHEN = {
+    EINHEIT_ZEICHEN_KEINS: ("Keins", None),
+    EINHEIT_ZEICHEN_TRUPP_UL: ("Unbemannte Luftfahrtsysteme", "Taktisches_Zeichen-UnbemannteLuftfahrsysteme.svg"),
+    "zugtrupp": ("Zugtrupp", "Taktisches_Zeichen-Zugtrupp.svg"),
+}
+
 _STANDARD_SCALES = (500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 200000, 250000, 500000, 1000000)
 
 # Empfohlener Maßstab der Hauptkarte je Papierformat. Wie in den Vorlagen der THW-Leitung zeigt jedes
@@ -114,7 +127,7 @@ class PrintInfo:
     ortsverband: str = ""
     einheit: str = "Trupp unbemannte Luftfahrtsysteme (Tr UL)"
     einheit_kurz: str = "TrUL"
-    einheit_zeichen: bool = True
+    einheit_zeichen: str = EINHEIT_ZEICHEN_TRUPP_UL  # Schlüssel aus `EINHEIT_ZEICHEN`
     bearbeiter: str = ""
     einsatz: str = ""
     kartentitel: str = KARTENTITEL_VORSCHLAEGE[0]
@@ -141,12 +154,15 @@ class PrintInfo:
         kartentitel, _ = project.readEntry(_PROJECT_SCOPE, _PROJECT_KARTENTITEL_KEY, d.kartentitel)
         einsatzort, _ = project.readEntry(_PROJECT_SCOPE, _PROJECT_EINSATZORT_KEY, "")
         gitter = s.value(_SETTINGS_PREFIX + "gitter", d.gitter)
+        # Früher nur ein Häkchen für das Zeichen des Trupps UL
+        zeichen_default = d.einheit_zeichen if s.value(_SETTINGS_PREFIX + "einheit_zeichen", True, type=bool) else ""
+        zeichen = s.value(_SETTINGS_PREFIX + "einheit_zeichen_art", zeichen_default)
 
         return cls(
             ortsverband=s.value(_SETTINGS_PREFIX + "ortsverband", d.ortsverband),
             einheit=s.value(_SETTINGS_PREFIX + "einheit", d.einheit),
             einheit_kurz=s.value(_SETTINGS_PREFIX + "einheit_kurz", d.einheit_kurz),
-            einheit_zeichen=s.value(_SETTINGS_PREFIX + "einheit_zeichen", d.einheit_zeichen, type=bool),
+            einheit_zeichen=zeichen if zeichen in EINHEIT_ZEICHEN else d.einheit_zeichen,
             bearbeiter=s.value(_SETTINGS_PREFIX + "bearbeiter", "")
             or project.metadata().author()
             or QgsApplication.userFullName(),
@@ -162,7 +178,7 @@ class PrintInfo:
         s.setValue(_SETTINGS_PREFIX + "ortsverband", self.ortsverband)
         s.setValue(_SETTINGS_PREFIX + "einheit", self.einheit)
         s.setValue(_SETTINGS_PREFIX + "einheit_kurz", self.einheit_kurz)
-        s.setValue(_SETTINGS_PREFIX + "einheit_zeichen", self.einheit_zeichen)
+        s.setValue(_SETTINGS_PREFIX + "einheit_zeichen_art", self.einheit_zeichen)
         s.setValue(_SETTINGS_PREFIX + "bearbeiter", self.bearbeiter)
         s.setValue(_SETTINGS_PREFIX + "gitter", self.gitter)
         s.setValue(_SETTINGS_PREFIX + "tidy_legend", self.tidy_legend)
@@ -267,6 +283,7 @@ class TemplateInfo:
     paper: str | None = None  # ISO-Format der ersten Seite, z. B. "A3"
     map_size_mm: tuple[float, float] | None = None  # Breite, Höhe der Hauptkarte
     canvas_extent: bool = False  # Hauptkarte trägt Toolbox-Gitter und übernimmt den Kartenausschnitt
+    unit_sign: bool = False  # Platz für das taktische Zeichen der Einheit (`Taktisches Zeichen Einheit`)
 
     @property
     def recommended_scale(self) -> int | None:
@@ -300,12 +317,14 @@ def _template_info(path: str, _mtime: float) -> TemplateInfo:
         (i for i in root.iter("LayoutItem") if i.get("type") == _LAYOUT_ITEM_MAP and i.get("id") == _MAIN_MAP_ID),
         None,
     )
+    unit_sign = any(i.get("id") == _UNIT_SIGN_ID for i in root.iter("LayoutItem"))
     if main_map is None:
-        return TemplateInfo(paper=_paper_format(page_size))
+        return TemplateInfo(paper=_paper_format(page_size), unit_sign=unit_sign)
     return TemplateInfo(
         paper=_paper_format(page_size),
         map_size_mm=_size_mm(main_map.get("size")),
         canvas_extent=any(g.get("name") in GITTER_NAMEN for g in main_map.iter("ComposerMapGrid")),
+        unit_sign=unit_sign,
     )
 
 
@@ -354,8 +373,8 @@ def load_print_template(
 
     _apply_variables(layout, info)
     _remove_vsnfd(layout)
-    _apply_unit_sign(layout, info.einheit_zeichen)
     _fix_picture_paths(layout, [os.path.dirname(path), assets_dir])
+    _apply_unit_sign(layout, info.einheit_zeichen, assets_dir)
     _apply_grid(layout, info.gitter)
     if canvas is not None:
         _apply_canvas_view(layout, canvas)
@@ -422,11 +441,38 @@ def _remove_vsnfd(layout: QgsPrintLayout) -> None:
             layout.removeLayoutItem(item)
 
 
-def _apply_unit_sign(layout: QgsPrintLayout, show: bool) -> None:
-    """Taktisches Zeichen der Einheit im Kartenkopf zeigen oder ausblenden."""
+def _apply_unit_sign(layout: QgsPrintLayout, zeichen: str, assets_dir: str) -> None:
+    """Taktisches Zeichen der Einheit im Kartenkopf austauschen oder ausblenden.
+
+    Das Zeichen behält Höhe und rechte Kante des Platzes in der Vorlage, die Breite folgt seinen Proportionen.
+    """
+    filename = EINHEIT_ZEICHEN.get(zeichen, (None, None))[1]
     for picture in _items_of_type(layout, QgsLayoutItemPicture):
-        if picture.id() == _UNIT_SIGN_ID:
-            picture.setVisibility(show)
+        if picture.id() != _UNIT_SIGN_ID:
+            continue
+        picture.setVisibility(filename is not None)
+        if not filename:
+            continue
+        sign_path = os.path.join(assets_dir, filename)
+        picture.setPicturePath(sign_path)
+        aspect = _svg_aspect(sign_path)
+        size, pos = picture.sizeWithUnits(), picture.positionWithUnits()
+        if not aspect or size.height() <= 0 or abs(size.width() / size.height() - aspect) < 0.01:
+            continue
+        width = size.height() * aspect
+        picture.attemptMove(QgsLayoutPoint(pos.x() + size.width() - width, pos.y(), pos.units()))
+        picture.attemptResize(QgsLayoutSize(width, size.height(), size.units()))
+
+
+def _svg_aspect(path: str) -> float | None:
+    """Breite / Höhe der SVG-Datei `path` nach ihrer viewBox, `None` wenn sie sich nicht lesen lässt."""
+    try:
+        view_box = ElementTree.parse(path).getroot().get("viewBox", "")
+        _, _, w, h = (float(v) for v in view_box.replace(",", " ").split())
+    except (OSError, ElementTree.ParseError, ValueError) as e:
+        logger.warning("Taktisches Zeichen %s ohne lesbare viewBox: %s", path, e)
+        return None
+    return w / h if h > 0 else None
 
 
 def _template_grids(map_item: QgsLayoutItemMap) -> dict:

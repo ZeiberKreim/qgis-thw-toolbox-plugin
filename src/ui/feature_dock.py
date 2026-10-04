@@ -21,9 +21,10 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
+from ..layout.mgrs_grid import point_to_mgrs
 from ..logging_utils import get_logger
 from ..paths import plugin_root
-from ..util.coordinates import WGS84, to_mgrs
+from ..util.coordinates import WGS84
 from .origin_point_widget import OriginPointWidget
 
 logger = get_logger(__name__)
@@ -70,9 +71,13 @@ class FeatureDock(QDockWidget):
 
         coord_layout = QHBoxLayout()
         self.utmref_label = QLabel("")
-        coord_layout.addWidget(self.utmref_label)
+        coord_layout.addWidget(self.utmref_label, 1)
         self.btn_copy_coords = QPushButton("Kopieren")
-        self.btn_copy_coords.setMaximumWidth(60)
+        # Wide enough for both texts ("Kopieren" / "Kopiert!") so it does not jump when confirming the copy
+        metrics = self.btn_copy_coords.fontMetrics()
+        text_width = max(metrics.horizontalAdvance(t) for t in ("Kopieren", "Kopiert!"))
+        self.btn_copy_coords.setMinimumWidth(text_width + 32)
+        self.btn_copy_coords.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         coord_layout.addWidget(self.btn_copy_coords)
         position_layout.addLayout(coord_layout)
 
@@ -228,23 +233,25 @@ class FeatureDock(QDockWidget):
         # Dock-Titel ohne Koordinaten
         self.setWindowTitle("Marker Details")
 
-    def _show_position(self, point, source_crs):
-        """Zeigt die aktuelle Marker-Position als UTMREF und Breite/Länge an."""
+    def _show_position(self, point, source_crs, resolution_m=1.0):
+        """Zeigt die aktuelle Marker-Position als UTMREF und Breite/Länge an.
+
+        Zone und Band ergeben sich aus der Position; ``resolution_m`` ist die
+        projektweite MGRS-Auflösung (wie für $POS in Annotationen).
+        """
         try:
             wgs = QgsCoordinateTransform(source_crs, WGS84, QgsProject.instance()).transform(point)
+            utmref = point_to_mgrs(point, source_crs, resolution_m) or ""
         except Exception:
-            logger.exception("Konnte Marker-Position nicht nach WGS84 umrechnen")
+            logger.exception("Konnte Marker-Position nicht umrechnen")
             self.latlon_label.clear()
             self.utmref_label.setText("UTMREF: Fehler")
             self.current_utm_coords = ""
             return
 
         self.latlon_label.setText(f'Breite/Länge: <a href="edit">{wgs.y():.6f} {wgs.x():.6f}</a>')
-        try:
-            utmref = to_mgrs(wgs.y(), wgs.x())
-        except ValueError:
-            utmref = ""
-        self.utmref_label.setText(f'UTMREF: <a href="edit">{utmref or "–"}</a>')
+        self.utmref_label.setText(f'UTMREF: <a href="edit">{utmref or "außerhalb UTM"}</a>')
+        # Nur die Koordinate selbst kopieren — so lässt sie sich z. B. direkt in der Suche einfügen
         self.current_utm_coords = utmref
 
     def on_edit_position(self, _link=None):
@@ -305,7 +312,10 @@ class FeatureDock(QDockWidget):
 
         # Koordinaten anzeigen
         if feat.geometry():
-            self._show_position(feat.geometry().asPoint(), layer_manager.layer.crs())
+            # Auflösung wie für $POS in Annotationen (projektweite Einstellung)
+            settings = getattr(layer_manager, "settings", None)
+            resolution = settings.annotation_mgrs_resolution_m if settings is not None else 1.0
+            self._show_position(feat.geometry().asPoint(), layer_manager.layer.crs(), resolution)
 
             # Dock-Titel ohne Koordinaten (nur "Marker Details")
             self.setWindowTitle("Marker Details")
@@ -488,7 +498,7 @@ class FeatureDock(QDockWidget):
         """Kopiert die UTMREF-Koordinate in die Zwischenablage"""
         if getattr(self, "current_utm_coords", ""):
             clipboard = QApplication.clipboard()
-            clipboard.setText(self.current_utm_coords)
+            clipboard.setText(self.current_coords)
             # Kurze visuelle Bestätigung
             self.btn_copy_coords.setText("Kopiert!")
 
